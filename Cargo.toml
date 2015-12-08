@@ -3,16 +3,11 @@ name = "enzcut"
 version = "0.1.0"
 authors = ["André Martins <alm253@cornell.edu>"]
 
-[features]
-
-default = []
-gzip = ["flate2"]
-
 [dependencies]
 docopt = "0.6"
 rustc-serialize = "0.3"
 num = "*"
-
-[dependencies.flate2]
-flate2 = "0.2.9"
-optional = true
+rust-htslib = "0.5"
+flate2 = "0.2"
+byteorder="0.4"
+bincode = "0.4"
