@@ -65,10 +65,10 @@ impl<R: BufRead> UnMap<R> {
             data: BTreeMap::new(),
             data_next: BTreeMap::new(),
             lines: reader.lines(),
-            seqnumber: -1,
+            seqnumber: 0,
             next_seqnumber: 0,
         };
-        try!(result.read_next_sequence());
+        try!(result.read_sequence_data());
         
         return Ok(result);
 	}
@@ -87,6 +87,23 @@ impl<R: BufRead> UnMap<R> {
         map.insert(pos, UnMapPosition { plus: !is_minus, minus: is_minus });
     }
 	
+    fn read_sequence_data(&mut self) -> Result<()> {
+        // read until either no more data or if find a row for the next sequence
+        while let Some(line) = self.lines.next() {
+            let line = try!(line);
+            let (seq, pos, is_minus) = try!(parse_line(line.into_bytes()));
+            
+            if seq == self.seqnumber {
+                Self::insert_value(&mut self.data, pos, is_minus);
+            } else {
+                Self::insert_value(&mut self.data_next, pos, is_minus);
+                self.next_seqnumber = seq;
+                break;
+            }
+        }
+        Ok(())
+    }
+    
 	/// Read the information for the next sequence from disk
 	pub fn read_next_sequence(&mut self) -> Result<()> {
         // if we haven't reached the next sequence number yet
@@ -106,18 +123,7 @@ impl<R: BufRead> UnMap<R> {
         self.data_next.clear();
         
         // read until either no more data or if find a row for the next sequence
-        while let Some(line) = self.lines.next() {
-            let line = try!(line);
-            let (seq, pos, is_minus) = try!(parse_line(line.into_bytes()));
-            
-            if seq == self.seqnumber {
-                Self::insert_value(&mut self.data, pos, is_minus);
-            } else {
-                Self::insert_value(&mut self.data_next, pos, is_minus);
-                self.next_seqnumber = seq;
-                break;
-            }
-        }
+        try!(self.read_sequence_data());
         
         Ok(())
     }
