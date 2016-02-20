@@ -34,7 +34,7 @@ impl<R: Read + Seek> SeqTable<R> {
             cut_length: try!(reader.read_u8()),
             plus_offset: try!(reader.read_u8()),
             minus_offset: try!(reader.read_u8()),
-            read_length: try!(reader.read_u8()),
+            read_length: try!(reader.read_u16::<LittleEndian>()),
         };
         // load block size
         let blen = try!(reader.read_u64::<LittleEndian>());

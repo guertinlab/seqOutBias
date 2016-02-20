@@ -48,7 +48,7 @@ impl<W: Write + Seek> SeqTableWriter<W> {
         // offsets are not required, but are stored anyway for reference
         try!(writer.write_u8(params.plus_offset));  
         try!(writer.write_u8(params.minus_offset));
-        try!(writer.write_u8(params.read_length));
+        try!(writer.write_u16::<LittleEndian>(params.read_length));
         try!(writer.write_u64::<LittleEndian>(blen));
         
         // write temporary blank value to be filled in later
@@ -102,7 +102,7 @@ impl<W: Write + Seek> Drop for SeqTableWriter<W> {
     }
 }
 
-struct SequenceWriter<'a, W: 'a + Write> {
+pub struct SequenceWriter<'a, W: 'a + Write> {
     offset: &'a mut u64,
     writer: &'a mut W,
     info: &'a mut SeqInfo,
@@ -140,11 +140,6 @@ impl<'a, W: 'a + Write> SequenceWriter<'a, W> {
 
 impl<'a, W: 'a + Write> SeqStore for SequenceWriter<'a, W> {   
     fn write(&mut self, plus: u16, minus: u16) {
-        // check mappability
-        // mask unmappable values to zero
-        // TODO:
-        
-        
         self.block.push((plus, minus));
         
         if self.block.len() == 1024 {

@@ -1,5 +1,5 @@
 //!
-//!	This modules is responsible for reading mappability information produced using tallymer.
+//!	This module is responsible for reading mappability information produced using tallymer.
 //!
 use std::io::prelude::*;
 use std::ffi::OsString;
@@ -13,8 +13,8 @@ use std::mem::swap;
 /// Specifies if a position is unmappable in each strand.
 #[derive(Copy, Clone)]
 pub struct UnMapPosition {
-    plus: bool,
-    minus: bool,
+    pub plus: bool,
+    pub minus: bool,
 }
 
 pub struct UnMap<R: BufRead> {
@@ -131,7 +131,7 @@ impl<R: BufRead> UnMap<R> {
     /// Query position
     ///
     /// Returns a pair of boolean values, which are true if the plus or minus strand read, respectively, is mappable at that position.
-    pub fn is_mappable(&self, position: u64) -> UnMapPosition {
+    pub fn is_unmappable(&self, position: u64) -> UnMapPosition {
         match self.data.get(&position) {
             Some(&result) => result,
             None => UnMapPosition { plus: false, minus: false }, // if not in map, then it's not unmappable

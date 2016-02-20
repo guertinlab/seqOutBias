@@ -1,5 +1,5 @@
 //!
-//!	This modules is responsible for running tallymer to create a mappability file
+//!	This module is responsible for running tallymer to create a mappability file
 //!	if no such file is present.
 //!
 extern crate flate2;
@@ -14,12 +14,9 @@ use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
 use std::io::Result;
-use std::io::Error;
 use std::io::ErrorKind;
 use std::io::copy;
 use std::io::BufWriter;
-use std::os::unix::io::AsRawFd;
-use std::os::unix::io::FromRawFd;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 
