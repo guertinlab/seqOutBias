@@ -26,6 +26,11 @@ pub struct SeqTable<R: Read + Seek> {
     read_buffer: Vec<u8>,
 }
 
+pub struct SequenceInfo {
+    pub name: String,
+    pub length: u64,
+}
+
 impl<R: Read + Seek> SeqTable<R> {
     pub fn open(mut reader: R) -> Result<SeqTable<R>> {
         try!(reader.seek(SeekFrom::Start(0)));
@@ -79,6 +84,16 @@ impl<R: Read + Seek> SeqTable<R> {
             },
             None => Err(Error::new(ErrorKind::NotFound, "sequence not found")),
         }
+    }
+    
+    pub fn params(&self) -> &SeqTableParams {
+        &self.params
+    }
+    
+    pub fn sequences(&self) -> Vec<SequenceInfo> {
+        self.infotable.iter().map(|info| 
+            SequenceInfo{ name: info.name.clone(), length: info.length }
+        ).collect()
     }
 }
 
