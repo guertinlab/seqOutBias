@@ -29,7 +29,7 @@ fn parse_line(bytes: Vec<u8>) -> Result<(u64, u64, bool)> {
     let mut seq_idx = 0u64;
     let mut pos = 0u64;
     let mut idx = 0;
-    
+        
     while bytes[idx] >= b'0' && bytes[idx] <= b'9' {
         seq_idx = seq_idx * 10 + (bytes[idx] - b'0') as u64;
         idx += 1;
@@ -49,7 +49,7 @@ fn parse_line(bytes: Vec<u8>) -> Result<(u64, u64, bool)> {
     idx += 1;
     
     // parse position
-    while bytes[idx] >= b'0' && bytes[idx] <= b'9' {
+    while idx < bytes.len() && bytes[idx] >= b'0' && bytes[idx] <= b'9' {
         pos = pos * 10 + (bytes[idx] - b'0') as u64;
         idx += 1;
     }
