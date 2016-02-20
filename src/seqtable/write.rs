@@ -58,7 +58,7 @@ impl<W: Write + Seek> SeqTableWriter<W> {
         try!(writer.write_u64::<LittleEndian>(0));
         
         //
-        let offset = 3 * size_of::<u64>() + 4 * size_of::<u8>();
+        let offset = 3 * size_of::<u64>() + 3 * size_of::<u8>() + size_of::<u16>();
         Ok(SeqTableWriter{ 
             tailoffset: offset as u64, 
             writer: writer, 
@@ -79,7 +79,8 @@ impl<W: Write + Seek> SeqTableWriter<W> {
             info: self.infotable.last_mut().unwrap(),
             block: Vec::new(),
             compressor: Compress::new(Compression::Best, false),
-            output: vec![0u8; self.block_length as usize],
+            output: vec![0u8; self.block_length as usize * size_of::<(u16,u16)>()],
+            block_length: self.block_length,
             max_buffer_size: &mut self.max_buffer_size,
         }
     }
@@ -95,7 +96,7 @@ impl<W: Write + Seek> Drop for SeqTableWriter<W> {
         encode_into(&self.infotable, &mut self.writer, bincode::SizeLimit::Infinite).unwrap();
         
         // seek to start & fill info table offset and max decoder size in header
-        let offset = size_of::<u64>() + 4 * size_of::<u8>();
+        let offset = size_of::<u64>() + 3 * size_of::<u8>() + size_of::<u16>();
         self.writer.seek(SeekFrom::Start(offset as u64)).unwrap();
         self.writer.write_u64::<LittleEndian>(self.tailoffset as u64).unwrap();
         self.writer.write_u64::<LittleEndian>(self.max_buffer_size).unwrap();
@@ -109,22 +110,25 @@ pub struct SequenceWriter<'a, W: 'a + Write> {
     block: Vec<(u16, u16)>,
     compressor: Compress,
     output: Vec<u8>,
+    block_length: u64,
     max_buffer_size: &'a mut u64,
 }
 
 impl<'a, W: 'a + Write> SequenceWriter<'a, W> { 
     fn write_block(&mut self) -> Result<()> {
-        for &(p, m) in &self.block {
+        /*for &(p, m) in &self.block {
             println!("write: ({},{})", p, m);
-        }
+        }*/
         
         //   compress block and write to disk
         let binvec: Vec<u8> = encode(&self.block, bincode::SizeLimit::Infinite).unwrap();
         *self.max_buffer_size = max(*self.max_buffer_size, binvec.len() as u64);
+
+        self.compressor.reset();
         let mut total = self.compressor.total_out();
         self.compressor.compress(&binvec, &mut self.output, Flush::Finish);
         total = self.compressor.total_out() - total;
-        
+
         try!(self.writer.write(&self.output[0..(total as usize)]));
         
         //   add block to info-table && length
@@ -142,7 +146,7 @@ impl<'a, W: 'a + Write> SeqStore for SequenceWriter<'a, W> {
     fn write(&mut self, plus: u16, minus: u16) {
         self.block.push((plus, minus));
         
-        if self.block.len() == 1024 {
+        if self.block.len() == self.block_length as usize {
                 self.write_block().ok().expect("Failed to write block");
         }
     }
