@@ -4,6 +4,7 @@
 use std::collections::VecDeque;
 use tallyread::{UnMap,UnMapPosition};
 use std::io::BufRead;
+use std::cmp;
 
 #[derive(Clone, Copy, Debug)]
 pub struct SeqTableParams {
@@ -33,44 +34,123 @@ pub use self::dump::dump_seqtable;
 /// to aligned read start coordinates.
 pub struct SeqBuffer<'a, S: SeqStore, R: 'a + BufRead> {
     store: S,
-    length: usize,
     position: u64,
+    written: u64, // TODO: consider storing this on SeqStore, i.e., add a method fn count(&self) -> u64
     plus_values: VecDeque<u16>,
+    minus_values: VecDeque<u16>,
+    plus_skip: u16,
+    minus_skip: u16,
+    common_skip: u16,
     unmap: &'a UnMap<R>,
 }
 
 impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
     
     /// Create new sequence buffer which will store values into the supplied SeqStore instance
-    pub fn new(store: S, params: SeqTableParams, unmap: &'a UnMap<R>) -> SeqBuffer<'a, S,R> {
-        let buf_len = params.read_length + params.minus_offset as u16 - params.cut_length as u16 + params.plus_offset as u16;
-        let mut queue = VecDeque::new();
+    pub fn new(mut store: S, params: SeqTableParams, unmap: &'a UnMap<R>) -> SeqBuffer<'a, S,R> {
+        // Skipping
+        //
+        // If the aligned read position for each strand is before the start of the sequence, then
+        // those values are not useful, i.e., they don't contribute to the output. So they should
+        // be skipped, instead of stored in the value queues. 
+        let plus_start = params.cut_length as i16 - 1 - params.plus_offset as i16;
+        let minus_start = params.read_length as i16 - 1 + params.minus_offset as i16;
+        let common_skip = if plus_start > 0 { // minus_start is always > 0 (assuming unsigned offsets)
+          cmp::min(plus_start, minus_start)
+        } else { 0 };
         
-        // pad buffer
-        // for the first OP positions there are no values to insert because the cut-site falls off the edge of the sequence
-        if params.plus_offset > 0 {
-            for _ in 0..params.plus_offset {
-                queue.push_front(0);
-            }
+        // Padding
+        //
+        // Output needs padding when the first useful aligned read position for a strand is beyond the
+        // start of the sequence. That can only happen for the plus strand (assuming unsigned offsets)
+        // since it's the strand that can use the offset to get ahead of the cut-site region.
+        let mut written = 0;
+        if plus_start < 0 {
+          let pad = -plus_start;
+          for _ in 0..pad {
+            store.write(0, 0);
+          }
+          written = pad as u64;
         }
         
-        SeqBuffer { store: store, length: buf_len as usize, position: 0, plus_values: queue, unmap: unmap}
+        //
+        SeqBuffer { 
+          store: store,
+          position: 0,
+          written: written,
+          plus_values: VecDeque::new(),
+          minus_values: VecDeque::new(),
+          plus_skip: if plus_start > 0 { plus_start as u16 } else { 0 },
+          minus_skip: minus_start as u16,
+          common_skip: common_skip as u16,
+          unmap: unmap}
+    }
+    
+    // Write values into underlying SeqStore, masking unmappable positions
+    fn write(&mut self, position: u64, plus_value: u16, minus_value: u16) {
+      let UnMapPosition{ plus: unmap_plus, minus: unmap_minus } = self.unmap.is_unmappable(position);
+            
+      let idx_plus = if unmap_plus { 0 } else { plus_value };
+      let idx_minus = if unmap_minus { 0 } else { minus_value };
+      
+      self.store.write(idx_plus, idx_minus);
+      self.written += 1;
     }
     
     /// Push a new n-mer table index into buffer
     pub fn push(&mut self, table_index: u16) {
-        self.plus_values.push_front(table_index);
-        
-        if self.plus_values.len() > self.length {
-            let value = self.plus_values.pop_back().unwrap();
-            
-            let UnMapPosition{ plus: unmap_plus, minus: unmap_minus } = self.unmap.is_unmappable(self.position);
-            
-            let idx_plus = if unmap_plus { 0 } else { value };
-            let idx_minus = if unmap_minus { 0 } else { table_index };
-            
-            self.store.write(idx_plus, idx_minus);
-            self.position += 1;
+      if self.common_skip > 0 {
+        self.common_skip -= 1;
+        self.plus_skip -= 1;
+        self.minus_skip -= 1;
+      } else {
+        if self.plus_skip == 0 && self.minus_skip == 0 {
+          // obtain plus strand value at current position
+          let plus_value = if self.plus_values.len() > 0 {
+            self.plus_values.push_front(table_index);
+            self.plus_values.pop_back().unwrap()
+          } else { table_index };
+          
+          // obtain minus strand value at current position
+          let minus_value = if self.minus_values.len() > 0 {
+            self.minus_values.push_front(table_index);
+            self.minus_values.pop_back().unwrap()
+          } else { table_index };
+          
+          // write pairs to store
+          let pos = self.position;
+          self.write(pos, plus_value, minus_value);
+        } else {
+          // Store values until the remaining strand has caught up
+          if self.minus_skip > 0 {
+            self.plus_values.push_front(table_index);
+            self.minus_skip -= 1;
+          }
+          if self.plus_skip > 0 {
+            self.minus_values.push_front(table_index);
+            self.plus_skip -= 1;
+          }
         }
+      }
+      
+      // update sequence position
+      self.position += 1;
     }
+}
+
+impl<'a, S: SeqStore, R: BufRead> Drop for SeqBuffer<'a, S, R> {
+  
+  // On Drop, complete the output as needed using remaining buffer content
+  fn drop(&mut self) {
+    let seq_length = self.position;
+    
+    // Output needs padding up to the length of the sequence
+    while self.written < seq_length {
+      let plus_value = self.plus_values.pop_back().unwrap_or(0);
+      let minus_value = self.minus_values.pop_back().unwrap_or(0);
+      
+      let pos = self.written;
+      self.write(pos, plus_value, minus_value);
+    }
+  }
 }
