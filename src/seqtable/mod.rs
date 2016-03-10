@@ -19,11 +19,14 @@ pub trait SeqStore {
 
 mod write;
 mod read;
+mod dump;
 
 // re-exports
 pub use self::write::SeqTableWriter;
 pub use self::write::SequenceWriter;
 pub use self::read::SeqTable;
+pub use self::read::SequenceInfo;
+pub use self::dump::dump_seqtable;
 
 /// This buffer is used to translate between coordinate systems
 /// Maps the n-mer table index values from the FASTA scan coordinates
@@ -31,6 +34,7 @@ pub use self::read::SeqTable;
 pub struct SeqBuffer<'a, S: SeqStore, R: 'a + BufRead> {
     store: S,
     length: usize,
+    position: u64,
     plus_values: VecDeque<u16>,
     unmap: &'a UnMap<R>,
 }
@@ -50,22 +54,23 @@ impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
             }
         }
         
-        SeqBuffer { store: store, length: buf_len as usize, plus_values: queue, unmap: unmap}
+        SeqBuffer { store: store, length: buf_len as usize, position: 0, plus_values: queue, unmap: unmap}
     }
     
     /// Push a new n-mer table index into buffer
-    pub fn push(&mut self, position: u64, table_index: u16) {
+    pub fn push(&mut self, table_index: u16) {
         self.plus_values.push_front(table_index);
         
         if self.plus_values.len() > self.length {
             let value = self.plus_values.pop_back().unwrap();
             
-            let UnMapPosition{ plus: unmap_plus, minus: unmap_minus } = self.unmap.is_unmappable(position);
+            let UnMapPosition{ plus: unmap_plus, minus: unmap_minus } = self.unmap.is_unmappable(self.position);
             
             let idx_plus = if unmap_plus { 0 } else { value };
             let idx_minus = if unmap_minus { 0 } else { table_index };
             
             self.store.write(idx_plus, idx_minus);
+            self.position += 1;
         }
     }
 }
