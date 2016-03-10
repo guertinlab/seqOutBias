@@ -40,8 +40,8 @@ pub struct SeqTableWriter<W: Write + Seek> {
 
 // TODO: add UnMap instance
 impl<W: Write + Seek> SeqTableWriter<W> {
-    pub fn new(mut writer: W, params: SeqTableParams) -> Result<SeqTableWriter<W>> {
-        let blen = 1024u64;
+    pub fn new(mut writer: W, params: SeqTableParams, block_length: u64) -> Result<SeqTableWriter<W>> {
+        let blen = block_length; //1024u64;
         
         // write parameters to file
         try!(writer.write_u8(params.cut_length));
