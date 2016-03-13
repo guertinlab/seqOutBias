@@ -2,7 +2,6 @@
 //!	This module is responsible for reading mappability information produced using tallymer.
 //!
 use std::io::prelude::*;
-use std::ffi::OsString;
 use std::io::Result;
 use std::io::Error;
 use std::io::ErrorKind;
