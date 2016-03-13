@@ -4,13 +4,16 @@ extern crate num;
 extern crate flate2;
 extern crate byteorder;
 extern crate bincode;
+extern crate rust_htslib as htslib;
 
 mod tallyrun;
 mod tallyread;
 mod seqtable;
 mod fasta;
+mod counts;
 
 use docopt::Docopt;
+use std::process::exit;
 
 /* Main usage/arguments */
 
@@ -20,6 +23,7 @@ Cut-site frequencies
 Usage:
   enzcut tallymer <fasta-file> <read-size> [--parts=<n>]
   enzcut dump <seqtbl-file> [<seqrange>]
+  enzcut table <seqtbl-file> [<bam-file>]
   enzcut <fasta-file> [options]
   enzcut (-h | --help)
   enzcut --version
@@ -41,6 +45,7 @@ struct Args {
     arg_read_size: u16,
     arg_seqtbl_file: String,
     arg_seqrange: Option<String>,
+    arg_bam_file: Option<String>,
     flag_cut_size: u8,
     flag_tallymer: Option<String>,
     flag_plus_offset: u8,
@@ -50,6 +55,7 @@ struct Args {
     flag_parts: u8,
     cmd_tallymer: bool,
     cmd_dump: bool,
+    cmd_table: bool,
 }
 
 fn main() {
@@ -82,6 +88,20 @@ fn main() {
         
         return;
     }
+    
+    if args.cmd_table {
+        counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file);
+        
+        return;
+    }
+    
+    // catch cmd names being interpreted as fasta_file names
+    if args.arg_fasta_file.eq("dump") || args.arg_fasta_file.eq("table") || args.arg_fasta_file.eq("tallymer") {
+        println!("Invalid arguments to {} command.", args.arg_fasta_file);
+        println!("{}", USAGE);
+        exit(1);
+    }
+    
     
     //
     // Process FASTA file to create sequence table

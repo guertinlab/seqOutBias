@@ -18,7 +18,7 @@ use super::write::SeqBlock;
 
 #[derive(Debug)]
 pub struct SeqTable<R: Read + Seek> {
-    params: SeqTableParams,
+    pub params: SeqTableParams,
     block_length: u64,
     infotable: Vec<SeqInfo>,
     reader: R,
@@ -86,6 +86,28 @@ impl<R: Read + Seek> SeqTable<R> {
                 
             },
             None => Err(Error::new(ErrorKind::NotFound, "sequence not found")),
+        }
+    }
+    
+    pub fn get_sequence_by_idx<'a>(&'a mut self, idx: usize) -> Result<SeqReader<'a, R>> {
+        if self.infotable.len() <= idx {
+            Err(Error::new(ErrorKind::NotFound, "sequence not found"))
+        } else {
+            match self.infotable[idx].blocks.get(0) {
+                Some(block) => {
+                    try!(self.reader.seek(SeekFrom::Start(block.offset)));
+                    Ok(SeqReader { 
+                        reader: &mut self.reader,
+                        block_length: self.block_length,
+                        info: &self.infotable[idx],
+                        block: None,
+                        block_idx: 0,
+                        dec_buffer: &mut self.dec_buffer,
+                        read_buffer: &mut self.read_buffer,
+                    })
+                },
+                None => Err(Error::new(ErrorKind::NotFound, "sequence not found")), 
+            }
         }
     }
     
