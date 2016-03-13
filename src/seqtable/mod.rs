@@ -28,6 +28,7 @@ pub use self::write::SequenceWriter;
 pub use self::read::SeqTable;
 pub use self::read::SequenceInfo;
 pub use self::dump::dump_seqtable;
+pub use self::dump::dump_seqtable_range;
 
 /// This buffer is used to translate between coordinate systems
 /// Maps the n-mer table index values from the FASTA scan coordinates
@@ -87,8 +88,8 @@ impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
     }
     
     // Write values into underlying SeqStore, masking unmappable positions
-    fn write(&mut self, position: u64, plus_value: u16, minus_value: u16) {
-      let UnMapPosition{ plus: unmap_plus, minus: unmap_minus } = self.unmap.is_unmappable(position);
+    fn write(&mut self, plus_value: u16, minus_value: u16) {
+      let UnMapPosition{ plus: unmap_plus, minus: unmap_minus } = self.unmap.is_unmappable(self.written);
             
       let idx_plus = if unmap_plus { 0 } else { plus_value };
       let idx_minus = if unmap_minus { 0 } else { minus_value };
@@ -118,8 +119,7 @@ impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
           } else { table_index };
           
           // write pairs to store
-          let pos = self.position;
-          self.write(pos, plus_value, minus_value);
+          self.write(plus_value, minus_value);
         } else {
           // Store values until the remaining strand has caught up
           if self.minus_skip > 0 {
@@ -149,8 +149,7 @@ impl<'a, S: SeqStore, R: BufRead> Drop for SeqBuffer<'a, S, R> {
       let plus_value = self.plus_values.pop_back().unwrap_or(0);
       let minus_value = self.minus_values.pop_back().unwrap_or(0);
       
-      let pos = self.written;
-      self.write(pos, plus_value, minus_value);
+      self.write(plus_value, minus_value);
     }
   }
 }

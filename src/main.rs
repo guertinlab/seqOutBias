@@ -19,7 +19,7 @@ Cut-site frequencies
 
 Usage:
   enzcut tallymer <fasta-file> <read-size> [--parts=<n>]
-  enzcut dump <seqtbl-file>
+  enzcut dump <seqtbl-file> [<seqrange>]
   enzcut <fasta-file> [options]
   enzcut (-h | --help)
   enzcut --version
@@ -40,6 +40,7 @@ struct Args {
     arg_fasta_file: String,
     arg_read_size: u16,
     arg_seqtbl_file: String,
+    arg_seqrange: Option<String>,
     flag_cut_size: u8,
     flag_tallymer: Option<String>,
     flag_plus_offset: u8,
@@ -73,7 +74,11 @@ fn main() {
     }
     
     if args.cmd_dump {
-        seqtable::dump_seqtable(&args.arg_seqtbl_file);
+        if let Some(seqrange) = args.arg_seqrange {
+            seqtable::dump_seqtable_range(&args.arg_seqtbl_file, &seqrange);   
+        } else {
+            seqtable::dump_seqtable(&args.arg_seqtbl_file);
+        }
         
         return;
     }
