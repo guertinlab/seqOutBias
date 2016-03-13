@@ -47,6 +47,9 @@ impl<R: Read + Seek> SeqTable<R> {
         let offset = try!(reader.read_u64::<LittleEndian>());
         // load buffer size
         let bufsize = try!(reader.read_u64::<LittleEndian>()) as usize;
+        
+        println!("blen: {}, offset: {}, bufsize: {}", blen, offset, bufsize);
+        
         // load info table
         try!(reader.seek(SeekFrom::Start(offset)));
         let infotable = (decode_from(&mut reader, bincode::SizeLimit::Infinite)).unwrap(); // TODO: fix
@@ -131,6 +134,8 @@ impl<'a, R: 'a + Read + Seek> SeqReader<'a, R> {
     
     pub fn get(&mut self, position: u64) -> Result<(u16, u16)> {
         let idx = (position / self.block_length) as usize;
+        
+        //println!("get: pos: {} idx: {} blen: {} n_blocks: {} length: {}", position, idx, self.block_length, self.info.blocks.len(), self.info.length);
         
         let block = if self.block.is_some() && self.block_idx == idx {
             self.block.as_ref().unwrap()
