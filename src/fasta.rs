@@ -89,7 +89,7 @@ fn process_sequence<R1: Read, R2: BufRead>(seqwrt: SequenceWriter<File>, iter: &
     while let Some(Ok(byte)) = iter.next() {
         match byte {
             b'>' => {
-                println!(" - {} bases", seqpos + 1);                
+                println!("# - {} bases", seqpos + 1);                
                 return State::HeaderChrom;
             },
             b'a' | b'A' => { store_base!(enzctxt, buf, 0); seqpos += 1; }, 
@@ -104,6 +104,7 @@ fn process_sequence<R1: Read, R2: BufRead>(seqwrt: SequenceWriter<File>, iter: &
             _ => {},
         }
     }
+    println!("# - {} bases", seqpos + 1);
     State::End
 }
 
@@ -133,7 +134,7 @@ pub fn generate_seqtable<R1: Read, R2: BufRead>(fasta: R1, tallymer: R2, params:
                     state = State::Header;
                 } else if byte == b'\n' {
                     let seqwrt = output.create_sequence(String::from_utf8_lossy(&chrom).into_owned());
-                    println!("{:?}", String::from_utf8_lossy(&chrom)); 
+                    println!("# chrom: {:?}", String::from_utf8_lossy(&chrom)); 
                     state = process_sequence(seqwrt, &mut iter, &mut enzctxt, &params, &mut unmap);
                     
                     // after processing sequence
@@ -147,7 +148,7 @@ pub fn generate_seqtable<R1: Read, R2: BufRead>(fasta: R1, tallymer: R2, params:
                 },
             State::Header => if byte == b'\n' {
                     let seqwrt = output.create_sequence(String::from_utf8_lossy(&chrom).into_owned());
-                    println!("{:?}", String::from_utf8_lossy(&chrom)); 
+                    println!("# chrom: {:?}", String::from_utf8_lossy(&chrom)); 
                     state = process_sequence(seqwrt, &mut iter, &mut enzctxt, &params, &mut unmap);
                     
                     // after processing sequence

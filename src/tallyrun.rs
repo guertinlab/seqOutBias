@@ -84,7 +84,7 @@ fn wait_or_exit(spawned: Result<Child>, name: &str) {
 		},
 		Err(e) => {
 			println!("failed to execute '{}': {}", name, e);
-			exit(-1)
+			exit(1)
 		}
 	}
 }
@@ -101,12 +101,12 @@ fn pipe_to_gzipped_file_or_exit(proc1: Result<Child>, output: &OsStr) {
 	let ecode = proc1.wait()
     	.unwrap_or_else(|e| {
 			println!("Failed to wait on 'gt tallymer': {}", e);
-			exit(-1)
+			exit(1)
 		});
 
 	if !ecode.success() {
 			println!("gt tallymer!\n");
-			exit(-1);
+			exit(1);
 	}
 }
 

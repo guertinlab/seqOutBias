@@ -22,9 +22,10 @@ Cut-site frequencies
 
 Usage:
   enzcut tallymer <fasta-file> <read-size> [--parts=<n>]
+  enzcut seqtable <fasta-file> [options]
   enzcut dump <seqtbl-file> [<seqrange>]
-  enzcut table <seqtbl-file> [<bam-file>]
-  enzcut <fasta-file> [options]
+  enzcut table <seqtbl-file> [<bam-file>] [--qual=<q>]
+  enzcut <fasta-file> [<bam-file>] [options]
   enzcut (-h | --help)
   enzcut --version
 
@@ -37,6 +38,8 @@ Options:
   --minus-offset=<m>  Cut-site offset on minus strand [default: 2]. Eg, m=2 A[A]AA.
   --read-size=<r>     Read length [default: 36].
   --parts=<n>         Split suffix tree generation into n parts [default: 4].
+  --qual=<q>          Minimum read quality [default: 0].
+  --out=<outfile>     Output seqtable filename [default: output.tbl].
 ";
 
 #[derive(Debug, RustcDecodable)]
@@ -53,7 +56,10 @@ struct Args {
     flag_version: bool,
     flag_read_size: u16,
     flag_parts: u8,
+    flag_qual: u8,
+    flag_out: String,
     cmd_tallymer: bool,
+    cmd_seqtable: bool,
     cmd_dump: bool,
     cmd_table: bool,
 }
@@ -74,7 +80,25 @@ fn main() {
     
     if args.cmd_tallymer {
         let tally_path = tallyrun::tallymer_createfile(&args.arg_fasta_file, args.arg_read_size, args.flag_parts);
-        println!("produced/found {:}", tally_path.to_str().unwrap());
+        println!("# tallymer produced/found {:}", tally_path.to_str().unwrap());
+        
+        return;
+    }
+    
+    if args.cmd_seqtable {
+        // Find tallymer file (creating it if needed)
+        let tally_path = tallyrun::tallymer_createfile(&args.arg_fasta_file, args.flag_read_size, args.flag_parts);
+        println!("# tallymer produced/found {:}", tally_path.to_str().unwrap());
+        
+        // 
+        let seq_params = seqtable::SeqTableParams {
+        cut_length: args.flag_cut_size,
+        plus_offset: args.flag_plus_offset,
+        minus_offset: args.flag_minus_offset,
+        read_length: args.flag_read_size };
+
+        fasta::process_fasta(&args.arg_fasta_file, &tally_path, seq_params, &args.flag_out);
+        println!("# seqtable produced {}", &args.flag_out);
         
         return;
     }
@@ -90,13 +114,13 @@ fn main() {
     }
     
     if args.cmd_table {
-        counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file);
+        counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file, args.flag_qual);
         
         return;
     }
     
     // catch cmd names being interpreted as fasta_file names
-    if args.arg_fasta_file.eq("dump") || args.arg_fasta_file.eq("table") || args.arg_fasta_file.eq("tallymer") {
+    if args.arg_fasta_file.eq("dump") || args.arg_fasta_file.eq("table") || args.arg_fasta_file.eq("tallymer") || args.arg_fasta_file.eq("seqtable") {
         println!("Invalid arguments to {} command.", args.arg_fasta_file);
         println!("{}", USAGE);
         exit(1);
@@ -104,19 +128,24 @@ fn main() {
     
     
     //
-    // Process FASTA file to create sequence table
+    // Process FASTA file to create sequence table and the counts table
     //
     
     // Find tallymer file (creating it if needed)
     let tally_path = tallyrun::tallymer_createfile(&args.arg_fasta_file, args.flag_read_size, args.flag_parts);
-    println!("produced/found {:}", tally_path.to_str().unwrap());
+    println!("# tallymer produced/found {:}", tally_path.to_str().unwrap());
     
-    // 
+    // Parameters
     let seq_params = seqtable::SeqTableParams {
 	   cut_length: args.flag_cut_size,
 	   plus_offset: args.flag_plus_offset,
 	   minus_offset: args.flag_minus_offset,
 	   read_length: args.flag_read_size };
 
-    fasta::process_fasta(&args.arg_fasta_file, &tally_path, seq_params, "output.tbl");
+    // Generate sequence table
+    fasta::process_fasta(&args.arg_fasta_file, &tally_path, seq_params, &args.flag_out);
+    println!("# seqtable produced {}", &args.flag_out);
+    
+    // Generate counts table
+    counts::tabulate(&args.flag_out, args.arg_bam_file, args.flag_qual);
 }

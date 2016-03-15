@@ -1,5 +1,5 @@
 //!
-//!	Code to write a sequence table to disk.
+//!	Code to read a sequence table from disk.
 //!
 extern crate bincode;
 
@@ -48,7 +48,7 @@ impl<R: Read + Seek> SeqTable<R> {
         // load buffer size
         let bufsize = try!(reader.read_u64::<LittleEndian>()) as usize;
         
-        println!("blen: {}, offset: {}, bufsize: {}", blen, offset, bufsize);
+        //println!("blen: {}, offset: {}, bufsize: {}", blen, offset, bufsize);
         
         // load info table
         try!(reader.seek(SeekFrom::Start(offset)));

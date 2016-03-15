@@ -1,5 +1,5 @@
 //!
-//!	This modules is contains the code to sum up n-mer aligned read counts based on a
+//!	This module contains the code to sum up n-mer aligned read counts based on a
 //! SeqTable instance. 
 //!
 use htslib::bam;
@@ -13,7 +13,7 @@ use std::process::exit;
 use std::iter::Peekable;
 use seqtable::SeqTable;
 
-fn process_bam_seq<R: ioRead+Seek>(counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>) -> bool {
+fn process_bam_seq<R: ioRead+Seek>(counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, minqual: u8) -> bool {
     let mut rdr = table.get_sequence_by_idx(map[*tid as usize]).ok().expect("read sequence");
     
     loop {
@@ -26,18 +26,20 @@ fn process_bam_seq<R: ioRead+Seek>(counts: &mut Vec<(u64, u64, u64, u64)>, table
         
         // if not count position
         if let Some(Ok(record)) = bamrecs.next() {
-            let pair = rdr.get(record.pos() as u64).unwrap();
-            
-            if record.is_reverse() {
-                counts[pair.1 as usize].3 += 1;
-            } else {
-                counts[pair.0 as usize].2 += 1;
-            } 
+            if record.mapq() >= minqual {
+                let pair = rdr.get(record.pos() as u64).unwrap();
+                
+                if record.is_reverse() {
+                    counts[pair.1 as usize].3 += 1;
+                } else {
+                    counts[pair.0 as usize].2 += 1;
+                } 
+            }
         } 
     }
 }
 
-pub fn tabulate(seqfile: &str, bamfile: Option<String>) {
+pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8) {
     // read
     let file = File::open(seqfile).ok().expect("read file");
     let mut table = SeqTable::open(file).ok().expect("read store");
@@ -86,7 +88,7 @@ pub fn tabulate(seqfile: &str, bamfile: Option<String>) {
         // reads
         let mut iter = bam.records().peekable();
         
-        while process_bam_seq(&mut counts, &mut table, &mut iter, &mut cur_tid, &map) {}
+        while process_bam_seq(&mut counts, &mut table, &mut iter, &mut cur_tid, &map, minqual) {}
         
         // TODO: tmp: output table
         for i in 1..counts.len() {

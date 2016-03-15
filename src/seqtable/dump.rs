@@ -1,3 +1,6 @@
+//!
+//!	Code to write a sequence table to the terminal.
+//!
 use std::io::prelude::*;
 use std::process::exit;
 use std::fs::File;

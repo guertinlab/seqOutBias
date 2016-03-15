@@ -1,5 +1,5 @@
 //!
-//!	This modules is contains the code to read and write the sequence cuts table using the mappability information
+//!	This module and sub-modules contain the code to read and write the sequence cuts table using the mappability information
 //!
 use std::collections::VecDeque;
 use tallyread::{UnMap,UnMapPosition};
