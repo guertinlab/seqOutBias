@@ -13,7 +13,7 @@ use std::process::exit;
 use std::iter::Peekable;
 use seqtable::SeqTable;
 
-fn process_bam_seq<R: ioRead+Seek>(counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, minqual: u8) -> bool {
+fn process_bam_seq<R: ioRead+Seek>(counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, rlen: usize, minqual: u8) -> bool {
     let mut rdr = table.get_sequence_by_idx(map[*tid as usize]).ok().expect("read sequence");
     
     loop {
@@ -26,7 +26,7 @@ fn process_bam_seq<R: ioRead+Seek>(counts: &mut Vec<(u64, u64, u64, u64)>, table
         
         // if not count position
         if let Some(Ok(record)) = bamrecs.next() {
-            if record.mapq() >= minqual {
+            if !record.is_unmapped() && record.seq().len() == rlen && record.mapq() >= minqual {
                 let pair = rdr.get(record.pos() as u64).unwrap();
                 
                 if record.is_reverse() {
@@ -52,6 +52,7 @@ pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8) {
         counts.push((0,0,0,0));
     }
     
+    let rlen = table.params.read_length as usize;
     let seqinfos = table.sequences();
     
     for idx in 0..seqinfos.len() {
@@ -88,7 +89,7 @@ pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8) {
         // reads
         let mut iter = bam.records().peekable();
         
-        while process_bam_seq(&mut counts, &mut table, &mut iter, &mut cur_tid, &map, minqual) {}
+        while process_bam_seq(&mut counts, &mut table, &mut iter, &mut cur_tid, &map, rlen, minqual) {}
         
         // TODO: tmp: output table
         for i in 1..counts.len() {
