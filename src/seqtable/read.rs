@@ -34,6 +34,11 @@ pub struct SequenceInfo {
 impl<R: Read + Seek> SeqTable<R> {
     pub fn open(mut reader: R) -> Result<SeqTable<R>> {
         try!(reader.seek(SeekFrom::Start(0)));
+        // load version
+        let version = try!(reader.read_u8());
+        if version != super::TBL_VERSION {
+            return Err(Error::new(ErrorKind::InvalidData, format!("Incompatible file version {}, expected {}.", version, super::TBL_VERSION)));
+        }
         // load parameters
         let params = SeqTableParams {
             cut_length: try!(reader.read_u8()),

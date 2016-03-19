@@ -117,7 +117,7 @@ pub fn generate_seqtable<R1: Read, R2: BufRead>(fasta: R1, tallymer: R2, params:
     let mut chrom: Vec<u8> = Vec::new();
     
     let f_out = File::create(outfile).ok().expect("create file");
-    let mut output = SeqTableWriter::new(f_out, params, 1064).ok().expect("create store");
+    let mut output = SeqTableWriter::new(f_out, params, 3200000).ok().expect("create store");
     
     while let Some(Ok(byte)) = iter.next() {
         match state {

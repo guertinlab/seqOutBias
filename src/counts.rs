@@ -42,7 +42,13 @@ fn process_bam_seq<R: ioRead+Seek>(counts: &mut Vec<(u64, u64, u64, u64)>, table
 pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8) {
     // read
     let file = File::open(seqfile).ok().expect("read file");
-    let mut table = SeqTable::open(file).ok().expect("read store");
+    let mut table = match SeqTable::open(file) {
+        Ok(value) => value,
+        Err(e) => {
+            println!("Error:tabulate: {}", e.to_string()); 
+            exit(1); 
+        },
+    };
     
     // allocate counts table
     let mut counts: Vec<(u64, u64, u64, u64)> = Vec::new();

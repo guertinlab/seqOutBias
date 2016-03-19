@@ -6,6 +6,8 @@ use tallyread::{UnMap,UnMapPosition};
 use std::io::BufRead;
 use std::cmp;
 
+const TBL_VERSION : u8 = 1u8;
+
 #[derive(Clone, Copy, Debug)]
 pub struct SeqTableParams {
 	pub cut_length: u8,

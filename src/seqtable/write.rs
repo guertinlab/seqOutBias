@@ -43,6 +43,8 @@ impl<W: Write + Seek> SeqTableWriter<W> {
     pub fn new(mut writer: W, params: SeqTableParams, block_length: u64) -> Result<SeqTableWriter<W>> {
         let blen = block_length; //1024u64;
         
+        // write version number
+        try!(writer.write_u8(super::TBL_VERSION));
         // write parameters to file
         try!(writer.write_u8(params.cut_length));
         // offsets are not required, but are stored anyway for reference
@@ -58,7 +60,7 @@ impl<W: Write + Seek> SeqTableWriter<W> {
         try!(writer.write_u64::<LittleEndian>(0));
         
         //
-        let offset = 3 * size_of::<u64>() + 3 * size_of::<u8>() + size_of::<u16>();
+        let offset = 3 * size_of::<u64>() + 4 * size_of::<u8>() + size_of::<u16>();
         Ok(SeqTableWriter{ 
             tailoffset: offset as u64, 
             writer: writer, 
@@ -96,7 +98,7 @@ impl<W: Write + Seek> Drop for SeqTableWriter<W> {
         encode_into(&self.infotable, &mut self.writer, bincode::SizeLimit::Infinite).unwrap();
         
         // seek to start & fill info table offset and max decoder size in header
-        let offset = size_of::<u64>() + 3 * size_of::<u8>() + size_of::<u16>();
+        let offset = size_of::<u64>() + 4 * size_of::<u8>() + size_of::<u16>();
         self.writer.seek(SeekFrom::Start(offset as u64)).unwrap();
         self.writer.write_u64::<LittleEndian>(self.tailoffset as u64).unwrap();
         self.writer.write_u64::<LittleEndian>(self.max_buffer_size).unwrap();
