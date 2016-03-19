@@ -37,8 +37,8 @@ pub use self::dump::dump_seqtable_range;
 /// to aligned read start coordinates.
 pub struct SeqBuffer<'a, S: SeqStore, R: 'a + BufRead> {
     store: S,
-    position: u64,
-    written: u64, // TODO: consider storing this on SeqStore, i.e., add a method fn count(&self) -> u64
+    position: u32,
+    written: u32, // TODO: consider storing this on SeqStore, i.e., add a method fn count(&self) -> u32
     plus_values: VecDeque<u16>,
     minus_values: VecDeque<u16>,
     plus_skip: u16,
@@ -73,7 +73,7 @@ impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
           for _ in 0..pad {
             store.write(0, 0);
           }
-          written = pad as u64;
+          written = pad as u32;
         }
         
         //

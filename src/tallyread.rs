@@ -17,20 +17,20 @@ pub struct UnMapPosition {
 }
 
 pub struct UnMap<R: BufRead> {
-    data: BTreeMap<u64, UnMapPosition>, // map from position to pair (unmappable in plus, unmappable in minus)
-    data_next: BTreeMap<u64, UnMapPosition>, // will contain the data for the next sequence, if any 
+    data: BTreeMap<u32, UnMapPosition>, // map from position to pair (unmappable in plus, unmappable in minus)
+    data_next: BTreeMap<u32, UnMapPosition>, // will contain the data for the next sequence, if any 
     lines: Lines<R>,
-    seqnumber: u64,
-    next_seqnumber: u64,
+    seqnumber: u32,
+    next_seqnumber: u32,
 }
 
-fn parse_line(bytes: Vec<u8>) -> Result<(u64, u64, bool)> {
-    let mut seq_idx = 0u64;
-    let mut pos = 0u64;
+fn parse_line(bytes: Vec<u8>) -> Result<(u32, u32, bool)> {
+    let mut seq_idx = 0u32;
+    let mut pos = 0u32;
     let mut idx = 0;
         
     while bytes[idx] >= b'0' && bytes[idx] <= b'9' {
-        seq_idx = seq_idx * 10 + (bytes[idx] - b'0') as u64;
+        seq_idx = seq_idx * 10 + (bytes[idx] - b'0') as u32;
         idx += 1;
     }
     
@@ -49,7 +49,7 @@ fn parse_line(bytes: Vec<u8>) -> Result<(u64, u64, bool)> {
     
     // parse position
     while idx < bytes.len() && bytes[idx] >= b'0' && bytes[idx] <= b'9' {
-        pos = pos * 10 + (bytes[idx] - b'0') as u64;
+        pos = pos * 10 + (bytes[idx] - b'0') as u32;
         idx += 1;
     }
     
@@ -72,7 +72,7 @@ impl<R: BufRead> UnMap<R> {
         return Ok(result);
 	}
     
-    fn insert_value(map: &mut BTreeMap<u64, UnMapPosition>, pos: u64, is_minus: bool) {
+    fn insert_value(map: &mut BTreeMap<u32, UnMapPosition>, pos: u32, is_minus: bool) {
         if let Some(entry) = map.get_mut(&pos) {
             if is_minus {
                 entry.minus = true;
@@ -130,7 +130,7 @@ impl<R: BufRead> UnMap<R> {
     /// Query position
     ///
     /// Returns a pair of boolean values, which are true if the plus or minus strand read, respectively, is mappable at that position.
-    pub fn is_unmappable(&self, position: u64) -> UnMapPosition {
+    pub fn is_unmappable(&self, position: u32) -> UnMapPosition {
         match self.data.get(&position) {
             Some(&result) => result,
             None => UnMapPosition { plus: false, minus: false }, // if not in map, then it's not unmappable

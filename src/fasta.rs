@@ -84,7 +84,7 @@ macro_rules! store_base {
 
 fn process_sequence<R1: Read, R2: BufRead>(seqwrt: SequenceWriter<File>, iter: &mut Bytes<R1>, enzctxt: &mut EnzContext, params: &SeqTableParams, unmap: &UnMap<R2>) -> State {
     let mut buf = SeqBuffer::new(seqwrt, *params, unmap);
-    let mut seqpos = 0u64;
+    let mut seqpos = 0u32;
     
     while let Some(Ok(byte)) = iter.next() {
         match byte {

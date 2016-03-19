@@ -27,7 +27,7 @@ fn process_bam_seq<R: ioRead+Seek>(counts: &mut Vec<(u64, u64, u64, u64)>, table
         // if not count position
         if let Some(Ok(record)) = bamrecs.next() {
             if !record.is_unmapped() && record.seq().len() == rlen && record.mapq() >= minqual {
-                let pair = rdr.get(record.pos() as u64).unwrap();
+                let pair = rdr.get(record.pos() as u32).unwrap();
                 
                 if record.is_reverse() {
                     counts[pair.1 as usize].3 += 1;

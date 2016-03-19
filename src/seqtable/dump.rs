@@ -17,7 +17,7 @@ fn dump_header<R: Read + Seek>(table: &SeqTable<R>) {
 }
 
 /// range can take the form: <chrom>:<start>-<end> or just <chrom>
-fn decode_range(range: &str) -> (String, Option<(u64,u64)>) {
+fn decode_range(range: &str) -> (String, Option<(u32,u32)>) {
     let parts: Vec<&str> = range.split(':').collect();
     let chrom = parts[0].to_string();
     
@@ -25,8 +25,8 @@ fn decode_range(range: &str) -> (String, Option<(u64,u64)>) {
         let parts: Vec<&str> = parts[1].split('-').collect();
         
         if parts.len() == 2 {
-            let start: u64 = parts[0].parse().expect("start coordinate");
-            let end: u64 = parts[1].parse().expect("end coordinate");
+            let start: u32 = parts[0].parse().expect("start coordinate");
+            let end: u32 = parts[1].parse().expect("end coordinate");
             (chrom, Some((start, end)))
         } else {
             println!("Error: Malformed seqrange pattern {}.", range);

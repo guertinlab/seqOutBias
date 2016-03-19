@@ -19,7 +19,7 @@ use super::write::SeqBlock;
 #[derive(Debug)]
 pub struct SeqTable<R: Read + Seek> {
     pub params: SeqTableParams,
-    block_length: u64,
+    block_length: u32,
     infotable: Vec<SeqInfo>,
     reader: R,
     dec_buffer: Vec<u8>,
@@ -28,7 +28,7 @@ pub struct SeqTable<R: Read + Seek> {
 
 pub struct SequenceInfo {
     pub name: String,
-    pub length: u64,
+    pub length: u32,
 }
 
 impl<R: Read + Seek> SeqTable<R> {
@@ -47,7 +47,7 @@ impl<R: Read + Seek> SeqTable<R> {
             read_length: try!(reader.read_u16::<LittleEndian>()),
         };
         // load block size
-        let blen = try!(reader.read_u64::<LittleEndian>());
+        let blen = try!(reader.read_u32::<LittleEndian>());
         // load info table offset
         let offset = try!(reader.read_u64::<LittleEndian>());
         // load buffer size
@@ -130,7 +130,7 @@ impl<R: Read + Seek> SeqTable<R> {
 #[derive(Debug)]
 struct SeqReader<'a, R: 'a + Read + Seek> {
     reader: &'a mut R,
-    block_length: u64,
+    block_length: u32,
     info: &'a SeqInfo,
     block: Option<Vec<(u16, u16)>>,
     block_idx: usize,
@@ -159,7 +159,7 @@ impl<'a, R: 'a + Read + Seek> SeqReader<'a, R> {
         return Ok(block);
     }
     
-    pub fn get(&mut self, position: u64) -> Result<(u16, u16)> {
+    pub fn get(&mut self, position: u32) -> Result<(u16, u16)> {
         let idx = (position / self.block_length) as usize;
         
         //println!("get: pos: {} idx: {} blen: {} n_blocks: {} length: {}", position, idx, self.block_length, self.info.blocks.len(), self.info.length);

@@ -26,7 +26,7 @@ pub struct SeqBlock {
 #[derive(Debug, RustcEncodable, RustcDecodable, PartialEq)]
 pub struct SeqInfo {
     pub name: String,
-    pub length: u64,
+    pub length: u32,
     pub blocks: Vec<SeqBlock>,
 }
 
@@ -34,14 +34,14 @@ pub struct SeqTableWriter<W: Write + Seek> {
     tailoffset: u64,
     writer: W,
     infotable: Vec<SeqInfo>,
-    block_length: u64,
+    block_length: u32,
     max_buffer_size: u64,
 }
 
 // TODO: add UnMap instance
 impl<W: Write + Seek> SeqTableWriter<W> {
-    pub fn new(mut writer: W, params: SeqTableParams, block_length: u64) -> Result<SeqTableWriter<W>> {
-        let blen = block_length; //1024u64;
+    pub fn new(mut writer: W, params: SeqTableParams, block_length: u32) -> Result<SeqTableWriter<W>> {
+        let blen = block_length;
         
         // write version number
         try!(writer.write_u8(super::TBL_VERSION));
@@ -51,7 +51,7 @@ impl<W: Write + Seek> SeqTableWriter<W> {
         try!(writer.write_u8(params.plus_offset));  
         try!(writer.write_u8(params.minus_offset));
         try!(writer.write_u16::<LittleEndian>(params.read_length));
-        try!(writer.write_u64::<LittleEndian>(blen));
+        try!(writer.write_u32::<LittleEndian>(blen));
         
         // write temporary blank value to be filled in later
         // with offset of sequence table at end of file
@@ -60,7 +60,7 @@ impl<W: Write + Seek> SeqTableWriter<W> {
         try!(writer.write_u64::<LittleEndian>(0));
         
         //
-        let offset = 3 * size_of::<u64>() + 4 * size_of::<u8>() + size_of::<u16>();
+        let offset = size_of::<u32>() + 2 * size_of::<u64>() + 4 * size_of::<u8>() + size_of::<u16>();
         Ok(SeqTableWriter{ 
             tailoffset: offset as u64, 
             writer: writer, 
@@ -98,7 +98,7 @@ impl<W: Write + Seek> Drop for SeqTableWriter<W> {
         encode_into(&self.infotable, &mut self.writer, bincode::SizeLimit::Infinite).unwrap();
         
         // seek to start & fill info table offset and max decoder size in header
-        let offset = size_of::<u64>() + 4 * size_of::<u8>() + size_of::<u16>();
+        let offset = size_of::<u32>() + 4 * size_of::<u8>() + size_of::<u16>();
         self.writer.seek(SeekFrom::Start(offset as u64)).unwrap();
         self.writer.write_u64::<LittleEndian>(self.tailoffset as u64).unwrap();
         self.writer.write_u64::<LittleEndian>(self.max_buffer_size).unwrap();
@@ -112,7 +112,7 @@ pub struct SequenceWriter<'a, W: 'a + Write> {
     block: Vec<(u16, u16)>,
     compressor: Compress,
     output: Vec<u8>,
-    block_length: u64,
+    block_length: u32,
     max_buffer_size: &'a mut u64,
 }
 
@@ -137,7 +137,7 @@ impl<'a, W: 'a + Write> SequenceWriter<'a, W> {
         self.info.blocks.push(SeqBlock { enc_size: binvec.len() as u64, comp_size: total, offset: *self.offset });
         *self.offset = *self.offset + total;
         
-        self.info.length = self.info.length + self.block.len() as u64;
+        self.info.length = self.info.length + self.block.len() as u32;
         self.block.clear();
         
         Ok(())
