@@ -39,7 +39,7 @@ fn process_bam_seq<R: ioRead+Seek>(counts: &mut Vec<(u64, u64, u64, u64)>, table
     }
 }
 
-pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8) {
+pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8) -> Vec<(u64, u64, u64, u64)> {
     // read
     let file = File::open(seqfile).ok().expect("read file");
     let mut table = match SeqTable::open(file) {
@@ -96,15 +96,19 @@ pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8) {
         let mut iter = bam.records().peekable();
         
         while process_bam_seq(&mut counts, &mut table, &mut iter, &mut cur_tid, &map, rlen, minqual) {}
-        
-        // TODO: tmp: output table
+    }
+    
+    counts
+}
+
+pub fn print_counts(counts: &Vec<(u64, u64, u64, u64)>, with_bam: bool) {
+    // TODO: tmp: output table to file
+    if with_bam {
         for i in 1..counts.len() {
             let (plus, minus, bam_plus, bam_minus) = counts[i];
             println!("{}\t{}\t{}\t{}\t{}", i, plus, minus, bam_plus, bam_minus);
         }
     } else {
-    
-        // TODO: tmp: output table
         for i in 1..counts.len() {
             let (plus, minus, _, _) = counts[i];
             println!("{}\t{}\t{}", i, plus, minus);

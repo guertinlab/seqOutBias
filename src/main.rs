@@ -11,6 +11,7 @@ mod tallyread;
 mod seqtable;
 mod fasta;
 mod counts;
+mod scale;
 
 use docopt::Docopt;
 use std::process::exit;
@@ -25,6 +26,7 @@ Usage:
   enzcut seqtable <fasta-file> [options]
   enzcut dump <seqtbl-file> [<seqrange>]
   enzcut table <seqtbl-file> [<bam-file>] [--qual=<q>]
+  enzcut scale <seqtbl-file> <bam-file> [options]
   enzcut <fasta-file> [<bam-file>] [options]
   enzcut (-h | --help)
   enzcut --version
@@ -40,6 +42,8 @@ Options:
   --parts=<n>         Split suffix tree generation into n parts [default: 4].
   --qual=<q>          Minimum read quality [default: 0].
   --out=<outfile>     Output seqtable filename [default: output.tbl].
+  --bed=<bedfile>     Output scaled BED filename [default: output.bed]. 
+  --stranded          Output per strand counts when writting scaled values.
 ";
 
 #[derive(Debug, RustcDecodable)]
@@ -58,10 +62,13 @@ struct Args {
     flag_parts: u8,
     flag_qual: u8,
     flag_out: String,
+    flag_stranded: bool,
+    flag_bed: String,
     cmd_tallymer: bool,
     cmd_seqtable: bool,
     cmd_dump: bool,
     cmd_table: bool,
+    cmd_scale: bool,
 }
 
 fn main() {
@@ -114,13 +121,24 @@ fn main() {
     }
     
     if args.cmd_table {
-        counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file, args.flag_qual);
+        let has_bam = args.arg_bam_file.is_some();
+        let counts = counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file, args.flag_qual);
+        counts::print_counts(&counts, has_bam);
+        return;
+    }
+    
+    if args.cmd_scale {
+        let bamfile = args.arg_bam_file.clone().unwrap();
+        let counts = counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file, args.flag_qual);
+        let pileup = scale::scale(&args.arg_seqtbl_file, counts, bamfile, args.flag_qual);
         
+        pileup.write_bed(&args.flag_bed, args.flag_stranded).unwrap();
+        println!("# scale produced {}", &args.flag_bed);
         return;
     }
     
     // catch cmd names being interpreted as fasta_file names
-    if args.arg_fasta_file.eq("dump") || args.arg_fasta_file.eq("table") || args.arg_fasta_file.eq("tallymer") || args.arg_fasta_file.eq("seqtable") {
+    if args.arg_fasta_file.eq("dump") || args.arg_fasta_file.eq("table") || args.arg_fasta_file.eq("tallymer") || args.arg_fasta_file.eq("seqtable") || args.arg_fasta_file.eq("scale") {
         println!("Invalid arguments to {} command.", args.arg_fasta_file);
         println!("{}", USAGE);
         exit(1);
@@ -147,5 +165,7 @@ fn main() {
     println!("# seqtable produced {}", &args.flag_out);
     
     // Generate counts table
-    counts::tabulate(&args.flag_out, args.arg_bam_file, args.flag_qual);
+    let has_bam = args.arg_bam_file.is_some();
+    let counts = counts::tabulate(&args.flag_out, args.arg_bam_file, args.flag_qual);
+    counts::print_counts(&counts, has_bam);
 }
