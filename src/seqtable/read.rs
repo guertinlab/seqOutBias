@@ -128,7 +128,7 @@ impl<R: Read + Seek> SeqTable<R> {
 }
 
 #[derive(Debug)]
-struct SeqReader<'a, R: 'a + Read + Seek> {
+pub struct SeqReader<'a, R: 'a + Read + Seek> {
     reader: &'a mut R,
     block_length: u32,
     info: &'a SeqInfo,

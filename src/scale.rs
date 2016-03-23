@@ -35,10 +35,11 @@ impl PileUp {
         PileUp { chroms: chroms, counts: counts }
     }
     
-    fn add_data<R: ioRead+Seek>(&mut self, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, rlen: usize, minqual: u8, counts: &Vec<(u64, u64, u64, u64)>) -> bool {
+    fn add_data<R: ioRead+Seek>(&mut self, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, minqual: u8, counts: &Vec<(u64, u64, u64, u64)>) -> bool {
         let sidx = map[*tid as usize];
+        let rlen = table.params.read_length as usize;
         let mut rdr = table.get_sequence_by_idx(sidx).ok().expect("read sequence");
-    
+
         loop {
             // check if we changed sequence
             match bamrecs.peek() {
@@ -60,7 +61,8 @@ impl PileUp {
                             let b_minus = counts[minus_idx as usize].3 as f64;
                             if s_minus > 0f64 {
                                 let inc = b_minus / s_minus;
-                                self.counts[sidx as usize].entry(record.pos() as u32).or_insert((0f64, 0f64)).1 += inc;
+                                let minus_pos = record.pos() as u32 + rlen as u32 - 1u32;
+                                self.counts[sidx as usize].entry(minus_pos).or_insert((0f64, 0f64)).1 += inc;
                             } /* else no data */
                         }
                     } else {
@@ -113,7 +115,6 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: String, 
         },
     };
     
-    let rlen = table.params.read_length as usize;
     let seqinfos = table.sequences();
 
     let bam = bam::Reader::new(&bamfile).ok().expect("Error opening bam.");
@@ -137,7 +138,7 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: String, 
     let mut iter = bam.records().peekable();
     let mut pileup = PileUp::new(seqinfos);
     
-    while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, rlen, minqual, &counts) {}
+    while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, minqual, &counts) {}
     
     pileup
 }
