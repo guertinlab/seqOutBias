@@ -14,6 +14,16 @@ use std::iter::Peekable;
 use seqtable::SeqTable;
 
 fn process_bam_seq<R: ioRead+Seek>(counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, rlen: usize, minqual: u8) -> bool {
+    // skip unmapped sequences (tid = -1)
+    if *tid < 0 {
+        match bamrecs.next() {
+            Some(Ok(ref rec)) => { *tid = rec.tid(); return true; },
+            Some(Err(_)) => return false,
+            None => return false,
+        }
+    }
+    // TODO: store counts table in seqtable file ...
+    
     let mut rdr = table.get_sequence_by_idx(map[*tid as usize]).ok().expect("read sequence");
     
     loop {

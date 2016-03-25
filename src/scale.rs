@@ -35,7 +35,17 @@ impl PileUp {
         PileUp { chroms: chroms, counts: counts }
     }
     
-    fn add_data<R: ioRead+Seek>(&mut self, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, minqual: u8, counts: &Vec<(u64, u64, u64, u64)>) -> bool {
+    fn add_data<R: ioRead+Seek>(&mut self, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, minqual: u8, scale: &Vec<(f64, f64)>) -> bool {
+        // skip unmapped sequences (tid = -1)
+        if *tid < 0 {
+            match bamrecs.next() {
+                Some(Ok(ref rec)) => { *tid = rec.tid(); return true; },
+                Some(Err(_)) => return false,
+                None => return false,
+            }
+        }
+        // TODO: pre-compute scaling ratios (check expression ...)
+        
         let sidx = map[*tid as usize];
         let rlen = table.params.read_length as usize;
         let mut rdr = table.get_sequence_by_idx(sidx).ok().expect("read sequence");
@@ -57,24 +67,16 @@ impl PileUp {
                         if minus_idx == 0 {
                             /* no data */
                         } else {
-                            let s_minus = counts[minus_idx as usize].1 as f64;
-                            let b_minus = counts[minus_idx as usize].3 as f64;
-                            if s_minus > 0f64 {
-                                let inc = b_minus / s_minus;
-                                let minus_pos = record.pos() as u32 + rlen as u32 - 1u32;
-                                self.counts[sidx as usize].entry(minus_pos).or_insert((0f64, 0f64)).1 += inc;
-                            } /* else no data */
+                            let inc = scale[minus_idx as usize].1;
+                            let minus_pos = record.pos() as u32 + rlen as u32 - 1u32;
+                            self.counts[sidx as usize].entry(minus_pos).or_insert((0f64, 0f64)).1 += inc;
                         }
                     } else {
                         if plus_idx == 0 {
                             /* no data */
                         } else {
-                            let s_plus = counts[plus_idx as usize].0 as f64;
-                            let b_plus = counts[plus_idx as usize].2 as f64;
-                            if s_plus > 0f64 {
-                                let inc = b_plus / s_plus;
-                                self.counts[sidx as usize].entry(record.pos() as u32).or_insert((0f64, 0f64)).0 += inc;
-                            } /* else no data */
+                            let inc = scale[plus_idx as usize].0;
+                            self.counts[sidx as usize].entry(record.pos() as u32).or_insert((0f64, 0f64)).0 += inc;
                         }
                     } 
                 }
@@ -102,6 +104,27 @@ impl PileUp {
         }
         Ok(())
     }
+}
+
+fn scale_factor(exp: u64, etotal: u64, obs: u64, ototal: u64) -> f64 {
+    let fexp = if etotal > 0 { exp as f64 / etotal as f64 } else { 0f64 };
+    let fobs = if ototal > 0 { obs as f64 / ototal as f64 } else { 0f64 };
+    if fobs > 0f64 { fexp / fobs } else { 0f64 }
+}
+
+fn compute_scale_factors(counts: &Vec<(u64, u64, u64, u64)>) -> Vec<(f64, f64)> {
+    // compute totals
+    let totals = counts.iter().fold((0u64, 0u64, 0u64, 0u64),
+        |acc, &(sp, sm, bp, bm)| ( acc.0 + sp, acc.1 + sm, acc.2 + bp, acc.3 + bm));
+    
+    // compute scale
+    // x = Obs * ExpFreq / ObsFreq
+    // scale = ExpFreq / ObsFreq
+    counts.iter().map(|&(sp, sm, bp, bm)| {
+        ( scale_factor(sp, totals.0, bp, totals.2),
+          scale_factor(sm, totals.1, bm, totals.3)
+        )
+    }).collect()
 }
 
 pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: String, minqual: u8) -> PileUp {
@@ -137,8 +160,9 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: String, 
     // reads
     let mut iter = bam.records().peekable();
     let mut pileup = PileUp::new(seqinfos);
+    let scale = compute_scale_factors(&counts);
     
-    while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, minqual, &counts) {}
+    while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, minqual, &scale) {}
     
     pileup
 }
