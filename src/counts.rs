@@ -107,29 +107,13 @@ pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8) -> Vec<(u64
         },
     };
     
-    // allocate counts table
-    let mut counts: Vec<(u64, u64, u64, u64)> = Vec::new();
-    let nmer_count = 4u64.pow(table.params.cut_length as u32) + 1;
+    // get counts table from file
+    let mut counts = table.counts().unwrap();
     
-    for _ in 0..nmer_count {
-        counts.push((0,0,0,0));
-    }
-    
+    //
     let rlen = table.params.read_length as usize;
     let seqinfos = table.sequences();
-    
-    for idx in 0..seqinfos.len() {
-        let length = seqinfos[idx].length;
-        let mut rdr = table.get_sequence_by_idx(idx).ok().expect("read sequence");
         
-        for i in 0..length {
-            let pair = rdr.get(i).unwrap();
-            
-            counts[pair.0 as usize].0 += 1;
-            counts[pair.1 as usize].1 += 1;
-        }
-    }
-    
     // if we received a BAM file, parse it
     if let Some(bamfilename) = bamfile {
         let bam = bam::Reader::new(&bamfilename).ok().expect("Error opening bam.");

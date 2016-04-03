@@ -24,6 +24,7 @@ pub struct SeqTable<R: Read + Seek> {
     reader: R,
     dec_buffer: Vec<u8>,
     read_buffer: Vec<u8>,
+    counts_offset: u64,
 }
 
 pub struct SequenceInfo {
@@ -52,6 +53,8 @@ impl<R: Read + Seek> SeqTable<R> {
         let offset = try!(reader.read_u64::<LittleEndian>());
         // load buffer size
         let bufsize = try!(reader.read_u64::<LittleEndian>()) as usize;
+        // load counts table offset
+        let counts_offset = try!(reader.read_u64::<LittleEndian>());
         
         //println!("blen: {}, offset: {}, bufsize: {}", blen, offset, bufsize);
         
@@ -66,6 +69,7 @@ impl<R: Read + Seek> SeqTable<R> {
             reader: reader,
             dec_buffer: vec![0u8; bufsize],
             read_buffer: vec![0u8; bufsize],
+            counts_offset: counts_offset,
         })
     }
     
@@ -124,6 +128,12 @@ impl<R: Read + Seek> SeqTable<R> {
         self.infotable.iter().map(|info| 
             SequenceInfo{ name: info.name.clone(), length: info.length }
         ).collect()
+    }
+    
+    pub fn counts(&mut self) -> Result<Vec<(u64, u64, u64, u64)>> {
+        try!(self.reader.seek(SeekFrom::Start(self.counts_offset)));
+        let counts: Vec<(u64, u64, u64, u64)> = (decode_from(&mut self.reader, bincode::SizeLimit::Infinite)).unwrap();
+        Ok(counts)
     }
 }
 

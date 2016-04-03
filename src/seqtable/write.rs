@@ -8,7 +8,7 @@ use std::io::SeekFrom;
 use std::io::Result;
 use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use std::mem::size_of;
-use bincode::rustc_serialize::{encode_into, encode};
+use bincode::rustc_serialize::{encode_into, encode, encoded_size};
 use flate2::{Compression,Compress,Flush};
 use std::cmp::max;
 
@@ -35,6 +35,7 @@ pub struct SeqTableWriter<W: Write + Seek> {
     infotable: Vec<SeqInfo>,
     block_length: u32,
     max_buffer_size: u64,
+    counts: Vec<(u64, u64, u64, u64)>,
 }
 
 // TODO: add UnMap instance
@@ -57,15 +58,28 @@ impl<W: Write + Seek> SeqTableWriter<W> {
         try!(writer.write_u64::<LittleEndian>(0));
         // same of max decoder size
         try!(writer.write_u64::<LittleEndian>(0));
+        // same for counts table offset
+        try!(writer.write_u64::<LittleEndian>(0));
         
         //
-        let offset = size_of::<u32>() + 2 * size_of::<u64>() + 4 * size_of::<u8>() + size_of::<u16>();
+        let offset = size_of::<u32>() + 3 * size_of::<u64>() + 4 * size_of::<u8>() + size_of::<u16>();
+        
+        // allocate counts table
+        let mut counts: Vec<(u64, u64, u64, u64)> = Vec::new();
+        let nmer_count = 4u64.pow(params.cut_length as u32) + 1;
+        
+        for _ in 0..nmer_count {
+            counts.push((0,0,0,0));
+        }
+        
+        //
         Ok(SeqTableWriter{ 
             tailoffset: offset as u64, 
             writer: writer, 
             infotable: Vec::new(),
             block_length: blen,
             max_buffer_size: 0,
+            counts: counts,
         })
     }
     
@@ -83,6 +97,7 @@ impl<W: Write + Seek> SeqTableWriter<W> {
             output: vec![0u8; self.block_length as usize * size_of::<(u16,u16)>()],
             block_length: self.block_length,
             max_buffer_size: &mut self.max_buffer_size,
+            counts: &mut self.counts,
         }
     }
 }
@@ -96,11 +111,17 @@ impl<W: Write + Seek> Drop for SeqTableWriter<W> {
         // write info table
         encode_into(&self.infotable, &mut self.writer, bincode::SizeLimit::Infinite).unwrap();
         
+        // write counts table
+        encode_into(&self.counts, &mut self.writer, bincode::SizeLimit::Infinite).unwrap();
+        
+        let counts_offset = self.tailoffset + encoded_size(&self.infotable);
+        
         // seek to start & fill info table offset and max decoder size in header
         let offset = size_of::<u32>() + 4 * size_of::<u8>() + size_of::<u16>();
         self.writer.seek(SeekFrom::Start(offset as u64)).unwrap();
         self.writer.write_u64::<LittleEndian>(self.tailoffset as u64).unwrap();
         self.writer.write_u64::<LittleEndian>(self.max_buffer_size).unwrap();
+        self.writer.write_u64::<LittleEndian>(counts_offset).unwrap();
     }
 }
 
@@ -113,6 +134,7 @@ pub struct SequenceWriter<'a, W: 'a + Write> {
     output: Vec<u8>,
     block_length: u32,
     max_buffer_size: &'a mut u64,
+    counts: &'a mut Vec<(u64, u64, u64, u64)>,
 }
 
 impl<'a, W: 'a + Write> SequenceWriter<'a, W> { 
@@ -145,8 +167,14 @@ impl<'a, W: 'a + Write> SequenceWriter<'a, W> {
 
 impl<'a, W: 'a + Write> SeqStore for SequenceWriter<'a, W> {   
     fn write(&mut self, plus: u16, minus: u16) {
+        // add to counts
+        self.counts[plus as usize].0 += 1;
+        self.counts[minus as usize].1 += 1;
+        
+        // add to block
         self.block.push((plus, minus));
         
+        // store block if full
         if self.block.len() == self.block_length as usize {
                 self.write_block().ok().expect("Failed to write block");
         }
