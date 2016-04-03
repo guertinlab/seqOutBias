@@ -13,6 +13,53 @@ use std::process::exit;
 use std::iter::Peekable;
 use seqtable::SeqTable;
 
+struct KeyIter {
+    kmer: Vec<u8>,
+    alph: [char; 4],
+}
+
+impl KeyIter {
+    fn new(k: u8) -> KeyIter {
+        let mut kmer = vec![1; k as usize];
+        kmer[(k - 1) as usize] = 0;
+        KeyIter { kmer: kmer, alph: ['A','C','G','T'] }
+    }
+    
+    fn key(&self) -> String {
+        let mut key = String::new();
+        
+        for b in &self.kmer {
+            key.push(self.alph[(b - 1) as usize]);
+        }
+        key
+    }
+}
+
+impl Iterator for KeyIter {
+    type Item = String;
+    
+    fn next(&mut self) -> Option<String> {
+        let mut idx = self.kmer.len() - 1;
+        
+        loop {
+            self.kmer[idx] += 1;
+            if self.kmer[idx] > 4 {
+                self.kmer[idx] = 1;
+                
+                if idx > 0 {
+                  idx -= 1;  
+                } else {
+                  return None;  
+                }
+            } else {
+                break;
+            }
+        }
+        
+        Some(self.key())
+    }
+}
+
 fn process_bam_seq<R: ioRead+Seek>(counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, rlen: usize, minqual: u8) -> bool {
     // skip unmapped sequences (tid = -1)
     if *tid < 0 {
@@ -112,16 +159,21 @@ pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8) -> Vec<(u64
 }
 
 pub fn print_counts(counts: &Vec<(u64, u64, u64, u64)>, with_bam: bool) {
+    let k = (((counts.len() - 1) as f32).log2() / 2.0) as u8;
+    let mut keys = KeyIter::new(k);
+    
     // TODO: tmp: output table to file
     if with_bam {
         for i in 1..counts.len() {
             let (plus, minus, bam_plus, bam_minus) = counts[i];
-            println!("{}\t{}\t{}\t{}\t{}", i, plus, minus, bam_plus, bam_minus);
+            let key = keys.next().unwrap();
+            println!("{}\t{}\t{}\t{}\t{}\t{}", i, key, plus, minus, bam_plus, bam_minus);
         }
     } else {
         for i in 1..counts.len() {
             let (plus, minus, _, _) = counts[i];
-            println!("{}\t{}\t{}", i, plus, minus);
+            let key = keys.next().unwrap();
+            println!("{}\t{}\t{}\t{}", i, key, plus, minus);
         }
     }
 }
