@@ -25,25 +25,26 @@ Usage:
   enzcut tallymer <fasta-file> <read-size> [--parts=<n>]
   enzcut seqtable <fasta-file> [options]
   enzcut dump <seqtbl-file> [<seqrange>]
-  enzcut table <seqtbl-file> [<bam-file>] [--qual=<q>]
+  enzcut table <seqtbl-file> [<bam-file>] [--qual=<q>] [--regions=<bedfile>]
   enzcut scale <seqtbl-file> <bam-file> [options]
   enzcut <fasta-file> [<bam-file>] [options]
   enzcut (-h | --help)
   enzcut --version
 
 Options:
-  -h --help           Show this screen.
-  --version           Show version.
-  --cut-size=<n>      Cut-site size [default: 4].
-  --tallymer=<file>   Unmappable positions file produced by tallymer (seq, pos).
-  --plus-offset=<p>   Cut-site offset on plus strand [default: 2]. Eg, p=2 AA[A]A.
-  --minus-offset=<m>  Cut-site offset on minus strand [default: 2]. Eg, m=2 A[A]AA.
-  --read-size=<r>     Read length [default: 36].
-  --parts=<n>         Split suffix tree generation into n parts [default: 4].
-  --qual=<q>          Minimum read quality [default: 0].
-  --out=<outfile>     Output seqtable filename [default: output.tbl].
-  --bed=<bedfile>     Output scaled BED filename [default: output.bed]. 
-  --stranded          Output per strand counts when writting scaled values.
+  -h --help            Show this screen.
+  --version            Show version.
+  --cut-size=<n>       Cut-site size [default: 4].
+  --tallymer=<file>    Unmappable positions file produced by tallymer (seq, pos).
+  --plus-offset=<p>    Cut-site offset on plus strand [default: 2]. Eg, p=2 AA[A]A.
+  --minus-offset=<m>   Cut-site offset on minus strand [default: 2]. Eg, m=2 A[A]AA.
+  --read-size=<r>      Read length [default: 36].
+  --parts=<n>          Split suffix tree generation into n parts [default: 4].
+  --qual=<q>           Minimum read quality [default: 0].
+  --regions=<bedfile>  Count only cut-sites inside the regions indicated in the BED file.
+  --out=<outfile>      Output seqtable filename [default: output.tbl].
+  --bed=<bedfile>      Output scaled BED filename [default: output.bed]. 
+  --stranded           Output per strand counts when writting scaled values.
 ";
 
 #[derive(Debug, RustcDecodable)]
@@ -61,6 +62,7 @@ struct Args {
     flag_read_size: u16,
     flag_parts: u8,
     flag_qual: u8,
+    flag_regions: Option<String>,
     flag_out: String,
     flag_stranded: bool,
     flag_bed: String,
@@ -122,14 +124,14 @@ fn main() {
     
     if args.cmd_table {
         let has_bam = args.arg_bam_file.is_some();
-        let counts = counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file, args.flag_qual);
+        let counts = counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file, args.flag_qual, args.flag_regions);
         counts::print_counts(&counts, has_bam);
         return;
     }
     
     if args.cmd_scale {
         let bamfile = args.arg_bam_file.clone().unwrap();
-        let counts = counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file, args.flag_qual);
+        let counts = counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file, args.flag_qual, args.flag_regions);
         let pileup = scale::scale(&args.arg_seqtbl_file, counts, bamfile, args.flag_qual);
         
         pileup.write_bed(&args.flag_bed, args.flag_stranded).unwrap();
@@ -166,6 +168,6 @@ fn main() {
     
     // Generate counts table
     let has_bam = args.arg_bam_file.is_some();
-    let counts = counts::tabulate(&args.flag_out, args.arg_bam_file, args.flag_qual);
+    let counts = counts::tabulate(&args.flag_out, args.arg_bam_file, args.flag_qual, args.flag_regions);
     counts::print_counts(&counts, has_bam);
 }
