@@ -19,11 +19,12 @@ use std::collections::BTreeMap;
 pub struct PileUp {
     chroms: Vec<String>,
     counts: Vec<BTreeMap<u32, (f64, f64)>>,
+    minus_shift: i32,
 }
 
 impl PileUp {
     
-    fn new(sinfos: Vec<SequenceInfo>) -> PileUp {
+    fn new(sinfos: Vec<SequenceInfo>, minus_shift: i32) -> PileUp {
         let mut chroms = Vec::new();
         let mut counts = Vec::new();
         
@@ -32,7 +33,7 @@ impl PileUp {
             counts.push(BTreeMap::new());
         }
         
-        PileUp { chroms: chroms, counts: counts }
+        PileUp { chroms: chroms, counts: counts, minus_shift: minus_shift }
     }
     
     fn add_data<R: ioRead+Seek>(&mut self, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, minqual: u8, scale: &Vec<(f64, f64)>) -> bool {
@@ -44,7 +45,6 @@ impl PileUp {
                 None => return false,
             }
         }
-        // TODO: pre-compute scaling ratios (check expression ...)
         
         let sidx = map[*tid as usize];
         let rlen = table.params.read_length as usize;
@@ -68,7 +68,7 @@ impl PileUp {
                             /* no data */
                         } else {
                             let inc = scale[minus_idx as usize].1;
-                            let minus_pos = record.pos() as u32 + rlen as u32 - 1u32;
+                            let minus_pos = ((record.pos() as u32 + rlen as u32 - 1u32) as i32 + self.minus_shift) as u32;
                             self.counts[sidx as usize].entry(minus_pos).or_insert((0f64, 0f64)).1 += inc;
                         }
                     } else {
@@ -95,10 +95,14 @@ impl PileUp {
             for (pos, value) in self.counts[i].iter() {
                 
                 if stranded {
-                    try!(write!(f, "{}\t{}\t{}\t{}\n", chrom, pos, pos + 1, value.0));
-                    try!(write!(f, "{}\t{}\t{}\t{}\n", chrom, pos, pos + 1, -value.1));
+                    if value.0 > 0f64 {
+                        try!(write!(f, "{}\t{}\t{}\t.\t{}\t+\n", chrom, pos, pos + 1, value.0));
+                    }
+                    if value.1 > 0f64 {
+                        try!(write!(f, "{}\t{}\t{}\t.\t{}\t-\n", chrom, pos, pos + 1, -value.1));
+                    }
                 } else {
-                    try!(write!(f, "{}\t{}\t{}\t{}\n", chrom, pos, pos + 1, value.0 + value.1));
+                    try!(write!(f, "{}\t{}\t{}\t.\t{}\n", chrom, pos, pos + 1, value.0 + value.1));
                 }
             }
         }
@@ -127,7 +131,7 @@ fn compute_scale_factors(counts: &Vec<(u64, u64, u64, u64)>) -> Vec<(f64, f64)> 
     }).collect()
 }
 
-pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: String, minqual: u8) -> PileUp {
+pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: String, minqual: u8, shift: bool) -> PileUp {
     // read
     let file = File::open(seqfile).ok().expect("read file");
     let mut table = match SeqTable::open(file) {
@@ -158,8 +162,16 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: String, 
     ).collect();
     
     // reads
+    let minus_shift = if shift {
+        let res = (table.params.plus_offset as i16 - (table.params.cut_length as i16 - table.params.minus_offset as i16 - 1i16)) as i32;
+        println!("# minus strand shift = {} bp", res);
+        res
+    } else {
+        0i32
+    };
+    
     let mut iter = bam.records().peekable();
-    let mut pileup = PileUp::new(seqinfos);
+    let mut pileup = PileUp::new(seqinfos, minus_shift);
     let scale = compute_scale_factors(&counts);
     
     while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, minqual, &scale) {}

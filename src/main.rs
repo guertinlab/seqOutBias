@@ -45,6 +45,7 @@ Options:
   --out=<outfile>      Output seqtable filename [default: output.tbl].
   --bed=<bedfile>      Output scaled BED filename [default: output.bed]. 
   --stranded           Output per strand counts when writting scaled values.
+  --shift-counts       Shift minus strand counts.
 ";
 
 #[derive(Debug, RustcDecodable)]
@@ -66,6 +67,7 @@ struct Args {
     flag_out: String,
     flag_stranded: bool,
     flag_bed: String,
+    flag_shift_counts: bool,
     cmd_tallymer: bool,
     cmd_seqtable: bool,
     cmd_dump: bool,
@@ -132,7 +134,7 @@ fn main() {
     if args.cmd_scale {
         let bamfile = args.arg_bam_file.clone().unwrap();
         let counts = counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file, args.flag_qual, args.flag_regions);
-        let pileup = scale::scale(&args.arg_seqtbl_file, counts, bamfile, args.flag_qual);
+        let pileup = scale::scale(&args.arg_seqtbl_file, counts, bamfile, args.flag_qual, args.flag_shift_counts);
         
         pileup.write_bed(&args.flag_bed, args.flag_stranded).unwrap();
         println!("# scale produced {}", &args.flag_bed);
