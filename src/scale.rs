@@ -20,11 +20,12 @@ pub struct PileUp {
     chroms: Vec<String>,
     counts: Vec<BTreeMap<u32, (f64, f64)>>,
     minus_shift: i32,
+    no_scale: bool,
 }
 
 impl PileUp {
     
-    fn new(sinfos: Vec<SequenceInfo>, minus_shift: i32) -> PileUp {
+    fn new(sinfos: Vec<SequenceInfo>, minus_shift: i32, no_scale: bool) -> PileUp {
         let mut chroms = Vec::new();
         let mut counts = Vec::new();
         
@@ -33,7 +34,7 @@ impl PileUp {
             counts.push(BTreeMap::new());
         }
         
-        PileUp { chroms: chroms, counts: counts, minus_shift: minus_shift }
+        PileUp { chroms: chroms, counts: counts, minus_shift: minus_shift, no_scale: no_scale}
     }
     
     fn add_data<R: ioRead+Seek>(&mut self, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, minqual: u8, scale: &Vec<(f64, f64)>) -> bool {
@@ -67,7 +68,7 @@ impl PileUp {
                         if minus_idx == 0 {
                             /* no data */
                         } else {
-                            let inc = scale[minus_idx as usize].1;
+                            let inc = if self.no_scale { 1f64 } else { scale[minus_idx as usize].1 };
                             let minus_pos = ((record.pos() as u32 + rlen as u32 - 1u32) as i32 + self.minus_shift) as u32;
                             self.counts[sidx as usize].entry(minus_pos).or_insert((0f64, 0f64)).1 += inc;
                         }
@@ -75,7 +76,7 @@ impl PileUp {
                         if plus_idx == 0 {
                             /* no data */
                         } else {
-                            let inc = scale[plus_idx as usize].0;
+                            let inc = if self.no_scale { 1f64 } else { scale[plus_idx as usize].0 };
                             self.counts[sidx as usize].entry(record.pos() as u32).or_insert((0f64, 0f64)).0 += inc;
                         }
                     } 
@@ -131,7 +132,7 @@ fn compute_scale_factors(counts: &Vec<(u64, u64, u64, u64)>) -> Vec<(f64, f64)> 
     }).collect()
 }
 
-pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: String, minqual: u8, shift: bool) -> PileUp {
+pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: String, minqual: u8, shift: bool, no_scale: bool) -> PileUp {
     // read
     let file = File::open(seqfile).ok().expect("read file");
     let mut table = match SeqTable::open(file) {
@@ -171,7 +172,7 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: String, 
     };
     
     let mut iter = bam.records().peekable();
-    let mut pileup = PileUp::new(seqinfos, minus_shift);
+    let mut pileup = PileUp::new(seqinfos, minus_shift, no_scale);
     let scale = compute_scale_factors(&counts);
     
     while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, minqual, &scale) {}
