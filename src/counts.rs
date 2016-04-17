@@ -6,6 +6,7 @@ use htslib::bam;
 use htslib::bam::Read;
 use htslib::bam::Reader;
 use htslib::bam::Records;
+use htslib::bam::record::Record;
 use std::fs::File;
 use std::io::Read as ioRead;
 use std::io::Seek;
@@ -173,7 +174,51 @@ impl Iterator for BedRanges {
   }
 }
 
-fn process_bam_seq<R: ioRead+Seek>(counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, rlen: usize, minqual: u8, regions: Option<&BedRanges>) -> bool {
+trait RecordCheck {
+    fn valid(&self, rec: &Record) -> bool;
+}
+
+struct SingleChecker {
+    read_length: usize,
+    min_quality: u8,
+}
+
+impl RecordCheck for SingleChecker {
+    fn valid(&self, record: &Record) -> bool {
+        !record.is_unmapped() && record.seq().len() == self.read_length && record.mapq() >= self.min_quality
+    }
+}
+
+struct PairedChecker {
+    read_length: usize,
+    min_quality: u8,
+    min_dist: i32,
+    max_dist: i32,
+    force_paired: bool,
+}
+
+impl RecordCheck for PairedChecker {
+    fn valid(&self, record: &Record) -> bool {
+        // check single read conditions
+        if record.is_unmapped() || record.seq().len() == self.read_length || record.mapq() >= self.min_quality {
+            return false;
+        }
+        // mandatory paired condition
+        if ( !record.is_paired() || record.is_mate_unmapped() || record.tid() != record.mtid() ) && self.force_paired {
+            return false;
+        }
+        // check pair distance 
+        if record.is_paired() {
+            let dist = (record.pos() - record.mpos()).abs() + self.read_length as i32;
+            if dist < self.min_dist || dist > self.max_dist {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+fn process_bam_seq<R: ioRead+Seek, C: RecordCheck>(counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, checker: &C, regions: Option<&BedRanges>) -> bool {
     // skip unmapped sequences (tid = -1)
     if *tid < 0 {
         match bamrecs.next() {
@@ -203,7 +248,7 @@ fn process_bam_seq<R: ioRead+Seek>(counts: &mut Vec<(u64, u64, u64, u64)>, table
             };
             
             //
-            if good && !record.is_unmapped() && record.seq().len() == rlen && record.mapq() >= minqual {
+            if good && checker.valid(&record) {
                 let pair = rdr.get(record.pos() as u32).unwrap();
                 
                 if record.is_reverse() {
@@ -252,7 +297,7 @@ fn region_counts<R: ioRead + Seek>(table: &mut SeqTable<R>, bedregions: &str) ->
     counts
 }
 
-pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8, regions: Option<String>) -> Vec<(u64, u64, u64, u64)> {
+pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8, regions: Option<String>, pair_range: Option<(i32, i32)>, paired: bool) -> Vec<(u64, u64, u64, u64)> {
     // read
     let file = File::open(seqfile).ok().expect("read file");
     let mut table = match SeqTable::open(file) {
@@ -302,7 +347,19 @@ pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8, regions: Op
             None
         };
         
-        while process_bam_seq(&mut counts, &mut table, &mut iter, &mut cur_tid, &map, rlen, minqual, ranges.as_ref()) {}
+        if pair_range.is_some() || paired {
+            let checker = PairedChecker {
+                read_length: rlen,
+                min_quality: minqual,
+                min_dist: 0,
+                max_dist: 0,
+                force_paired: paired,
+            };
+            while process_bam_seq(&mut counts, &mut table, &mut iter, &mut cur_tid, &map, &checker, ranges.as_ref()) {}
+        } else {
+            let checker = SingleChecker { read_length: rlen, min_quality: minqual };
+            while process_bam_seq(&mut counts, &mut table, &mut iter, &mut cur_tid, &map, &checker, ranges.as_ref()) {}
+        }
     }
     
     counts
