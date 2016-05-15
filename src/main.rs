@@ -45,9 +45,9 @@ Options:
   --parts=<n>           Split suffix tree generation into n parts [default: 4].
   --qual=<q>            Minimum read quality [default: 0].
   --regions=<bedfile>   Count only cut-sites inside the regions indicated in the BED file.
-  --out=<outfile>       Output seqtable filename (defaults to fasta file name with .tbl extension).
-  --bed=<bedfile>       Output scaled BED filename [default: output.bed].
-  --bw=<bigwigfile>     Output scaled BigWig filename [default: output.bw].
+  --out=<outfile>       Output seqtable filename (defaults to fasta file basename with .tbl extension).
+  --bed=<bedfile>       Output scaled BED filename (defaults to BAM file basename with '_scaled.bed' extension).
+  --bw=<bigwigfile>     Output scaled BigWig filename (defaults to BAM file basename with .bw extension).
   --stranded            Output per strand counts when writting scaled values.
   --shift-counts        Shift minus strand counts.
   --no-scale            Skip actual scalling in 'scale' command.
@@ -73,8 +73,8 @@ struct Args {
     flag_regions: Option<String>,
     flag_out: Option<String>,
     flag_stranded: bool,
-    flag_bed: String,
-    flag_bw: String,
+    flag_bed: Option<String>,
+    flag_bw: Option<String>,
     flag_shift_counts: bool,
     flag_no_scale: bool,
     flag_pdist: Option<String>,
@@ -103,12 +103,12 @@ fn parse_range(range: &str) -> (i32, i32) {
     (min_val.unwrap(),max_val.unwrap())
 }
 
-fn seqtable_filename(fasta: &str, out_arg: Option<String>) -> String {
+fn stem_filename(stem_src: &str, suffix: &str, out_arg: Option<String>) -> String {
     match out_arg {
         Some(out) => out,
         None => {
-            let mut basename = Path::new(fasta).file_stem().unwrap().to_os_string();
-            basename.push(".tbl");
+            let mut basename = Path::new(stem_src).file_stem().unwrap().to_os_string();
+            basename.push(suffix);
             basename.into_string().unwrap()
         }
     }
@@ -190,7 +190,7 @@ fn main() {
     
     // phase 2 - seqtable
     let seqtable_file = if run_seqtable {
-        let outfile = seqtable_filename(&args.arg_fasta_file, args.flag_out);
+        let outfile = stem_filename(&args.arg_fasta_file, ".tbl", args.flag_out);
         
         let seq_params = seqtable::SeqTableParams {
             cut_length: args.flag_cut_size,
@@ -208,20 +208,24 @@ fn main() {
     if run_scale {
         let bamfile = args.arg_bam_file.clone().unwrap();
         let counts = counts::tabulate(&seqtable_file, args.arg_bam_file, args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired);
-        let pileup = scale::scale(&seqtable_file, counts, bamfile, args.flag_qual, args.flag_shift_counts, args.flag_no_scale);
-            
-        match pileup.write_bed(&args.flag_bed, args.flag_stranded) {
-            Ok(_) => println!("# scale produced {}", &args.flag_bed),
+        let pileup = scale::scale(&seqtable_file, counts, &bamfile, args.flag_qual, args.flag_shift_counts, args.flag_no_scale);
+        
+        let outfile_bed = stem_filename(&bamfile, "_scaled.bed", args.flag_bed);
+        
+        match pileup.write_bed(&outfile_bed, args.flag_stranded) {
+            Ok(_) => println!("# scale produced {}", &outfile_bed),
             Err(err) => println!("Error producing BED file: {}", err.description()),
         }
         
-        match pileup.write_bw(&args.flag_bw, args.flag_stranded) {
+        let outfile_bw = stem_filename(&bamfile, ".bw", args.flag_bw);
+        
+        match pileup.write_bw(&outfile_bw, args.flag_stranded) {
             Ok((f1, f2)) => {
                 if f2.is_some() {
                     println!("# scale produced {}", f1);
                     println!("# scale produced {}", f2.unwrap());
                 } else {
-                    println!("# scale produced {}", &args.flag_bw);    
+                    println!("# scale produced {}", f1);   
                 }
             },
             Err(err) => println!("Error producing BigWig file: {}", err.description()), 

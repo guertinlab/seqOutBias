@@ -174,7 +174,7 @@ fn compute_scale_factors(counts: &Vec<(u64, u64, u64, u64)>) -> Vec<(f64, f64)> 
     }).collect()
 }
 
-pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: String, minqual: u8, shift: bool, no_scale: bool) -> PileUp {
+pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: &str, minqual: u8, shift: bool, no_scale: bool) -> PileUp {
     // read
     let file = File::open(seqfile).ok().expect("read file");
     let mut table = match SeqTable::open(file) {
@@ -187,7 +187,7 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: String, 
     
     let seqinfos = table.sequences();
 
-    let bam = bam::Reader::new(&bamfile).ok().expect("Error opening bam.");
+    let bam = bam::Reader::new(&Path::new(bamfile)).ok().expect("Error opening bam.");
     let names = bam.header.target_names();
     let mut cur_tid = 0;
     
