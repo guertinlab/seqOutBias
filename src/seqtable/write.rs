@@ -38,7 +38,6 @@ pub struct SeqTableWriter<W: Write + Seek> {
     counts: Vec<(u64, u64, u64, u64)>,
 }
 
-// TODO: add UnMap instance
 impl<W: Write + Seek> SeqTableWriter<W> {
     pub fn new(mut writer: W, params: SeqTableParams, block_length: u32) -> Result<SeqTableWriter<W>> {
         let blen = block_length;

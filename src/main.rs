@@ -17,6 +17,7 @@ mod scale;
 use docopt::Docopt;
 use std::process::exit;
 use std::error::Error;
+use std::path::Path;
 
 /* Main usage/arguments */
 
@@ -44,7 +45,7 @@ Options:
   --parts=<n>           Split suffix tree generation into n parts [default: 4].
   --qual=<q>            Minimum read quality [default: 0].
   --regions=<bedfile>   Count only cut-sites inside the regions indicated in the BED file.
-  --out=<outfile>       Output seqtable filename [default: output.tbl].
+  --out=<outfile>       Output seqtable filename (defaults to fasta file name with .tbl extension).
   --bed=<bedfile>       Output scaled BED filename [default: output.bed].
   --bw=<bigwigfile>     Output scaled BigWig filename [default: output.bw].
   --stranded            Output per strand counts when writting scaled values.
@@ -70,7 +71,7 @@ struct Args {
     flag_parts: u8,
     flag_qual: u8,
     flag_regions: Option<String>,
-    flag_out: String,
+    flag_out: Option<String>,
     flag_stranded: bool,
     flag_bed: String,
     flag_bw: String,
@@ -100,6 +101,17 @@ fn parse_range(range: &str) -> (i32, i32) {
         exit(1);
     }
     (min_val.unwrap(),max_val.unwrap())
+}
+
+fn seqtable_filename(fasta: &str, out_arg: Option<String>) -> String {
+    match out_arg {
+        Some(out) => out,
+        None => {
+            let mut basename = Path::new(fasta).file_stem().unwrap().to_os_string();
+            basename.push(".tbl");
+            basename.into_string().unwrap()
+        }
+    }
 }
 
 fn main() {
@@ -178,23 +190,25 @@ fn main() {
     
     // phase 2 - seqtable
     let seqtable_file = if run_seqtable {
+        let outfile = seqtable_filename(&args.arg_fasta_file, args.flag_out);
+        
         let seq_params = seqtable::SeqTableParams {
             cut_length: args.flag_cut_size,
             plus_offset: args.flag_plus_offset,
             minus_offset: args.flag_minus_offset,
             read_length: args.flag_read_size };
-        fasta::process_fasta(&args.arg_fasta_file, &tally_path.unwrap(), seq_params, &args.flag_out);
-        println!("# seqtable produced {}", &args.flag_out);
-        &args.flag_out
+        fasta::process_fasta(&args.arg_fasta_file, &tally_path.unwrap(), seq_params, &outfile);
+        println!("# seqtable produced {}", &outfile);
+        outfile
     } else {
-        &args.arg_seqtbl_file
+        args.arg_seqtbl_file
     };
     
     // phase 3 - tabulate & scale
     if run_scale {
         let bamfile = args.arg_bam_file.clone().unwrap();
-        let counts = counts::tabulate(seqtable_file, args.arg_bam_file, args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired);
-        let pileup = scale::scale(seqtable_file, counts, bamfile, args.flag_qual, args.flag_shift_counts, args.flag_no_scale);
+        let counts = counts::tabulate(&seqtable_file, args.arg_bam_file, args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired);
+        let pileup = scale::scale(&seqtable_file, counts, bamfile, args.flag_qual, args.flag_shift_counts, args.flag_no_scale);
             
         match pileup.write_bed(&args.flag_bed, args.flag_stranded) {
             Ok(_) => println!("# scale produced {}", &args.flag_bed),
