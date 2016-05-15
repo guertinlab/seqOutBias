@@ -121,30 +121,7 @@ fn main() {
         None => None
     };
     
-    if args.cmd_tallymer {
-        let tally_path = tallyrun::tallymer_createfile(&args.arg_fasta_file, args.arg_read_size, args.flag_parts);
-        println!("# tallymer produced/found {:}", tally_path.to_str().unwrap());
-        
-        return;
-    }
-    
-    if args.cmd_seqtable {
-        // Find tallymer file (creating it if needed)
-        let tally_path = tallyrun::tallymer_createfile(&args.arg_fasta_file, args.flag_read_size, args.flag_parts);
-        println!("# tallymer produced/found {:}", tally_path.to_str().unwrap());
-        
-        // 
-        let seq_params = seqtable::SeqTableParams {
-        cut_length: args.flag_cut_size,
-        plus_offset: args.flag_plus_offset,
-        minus_offset: args.flag_minus_offset,
-        read_length: args.flag_read_size };
-
-        fasta::process_fasta(&args.arg_fasta_file, &tally_path, seq_params, &args.flag_out);
-        println!("# seqtable produced {}", &args.flag_out);
-        
-        return;
-    }
+    // Check for data output commands
     
     if args.cmd_dump {
         if let Some(seqrange) = args.arg_seqrange {
@@ -163,11 +140,62 @@ fn main() {
         return;
     }
     
-    if args.cmd_scale {
-        let bamfile = args.arg_bam_file.clone().unwrap();
-        let counts = counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file, args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired);
-        let pileup = scale::scale(&args.arg_seqtbl_file, counts, bamfile, args.flag_qual, args.flag_shift_counts, args.flag_no_scale);
+    // Check for main sequence commands
+    let mut run_tallymer = true;
+    let mut run_seqtable = true;
+    let mut run_scale = true;
+    
+    if args.cmd_tallymer {
+        // just phase 1
+        run_seqtable = false;
+        run_scale = false;
+    } else if args.cmd_seqtable {
+        // phase 1 & 2
+        run_scale = false;
+    } else if args.cmd_scale {
+        // just phase 3
+        run_tallymer = false;
+        run_seqtable = false;
+    } else {
+        // all three phases
         
+        // catch cmd names being interpreted as fasta_file names
+        if args.arg_fasta_file.eq("dump") || args.arg_fasta_file.eq("table") || args.arg_fasta_file.eq("tallymer") || args.arg_fasta_file.eq("seqtable") || args.arg_fasta_file.eq("scale") {
+            println!("Invalid arguments to {} command.", args.arg_fasta_file);
+            println!("{}", USAGE);
+            exit(1);
+        }
+    }
+    
+    // Process main sequence phases
+    
+    // phase 1 - tallymer
+    let tally_path = if run_tallymer {
+        let path = tallyrun::tallymer_createfile(&args.arg_fasta_file, args.flag_read_size, args.flag_parts);
+        println!("# tallymer produced/found {:}", path.to_str().unwrap());
+        Some(path)
+    } else { None };
+    
+    // phase 2 - seqtable
+    let seqtable_file = if run_seqtable {
+        let seq_params = seqtable::SeqTableParams {
+            cut_length: args.flag_cut_size,
+            plus_offset: args.flag_plus_offset,
+            minus_offset: args.flag_minus_offset,
+            read_length: args.flag_read_size };
+        fasta::process_fasta(&args.arg_fasta_file, &tally_path.unwrap(), seq_params, &args.flag_out);
+        println!("# seqtable produced {}", &args.flag_out);
+        &args.flag_out
+    } else {
+        &args.arg_seqtbl_file
+    };
+    
+    // phase 3 - tabulate & scale
+    if run_scale {
+        let bamfile = args.arg_bam_file.clone().unwrap();
+        let counts = counts::tabulate(seqtable_file, args.arg_bam_file, args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired);
+        let pileup = scale::scale(seqtable_file, counts, bamfile, args.flag_qual, args.flag_shift_counts, args.flag_no_scale);
+            
         match pileup.write_bed(&args.flag_bed, args.flag_stranded) {
             Ok(_) => println!("# scale produced {}", &args.flag_bed),
             Err(err) => println!("Error producing BED file: {}", err.description()),
@@ -184,39 +212,5 @@ fn main() {
             },
             Err(err) => println!("Error producing BigWig file: {}", err.description()), 
         }
-        
-        return;
     }
-    
-    // catch cmd names being interpreted as fasta_file names
-    if args.arg_fasta_file.eq("dump") || args.arg_fasta_file.eq("table") || args.arg_fasta_file.eq("tallymer") || args.arg_fasta_file.eq("seqtable") || args.arg_fasta_file.eq("scale") {
-        println!("Invalid arguments to {} command.", args.arg_fasta_file);
-        println!("{}", USAGE);
-        exit(1);
-    }
-    
-    
-    //
-    // Process FASTA file to create sequence table and the counts table
-    //
-    
-    // Find tallymer file (creating it if needed)
-    let tally_path = tallyrun::tallymer_createfile(&args.arg_fasta_file, args.flag_read_size, args.flag_parts);
-    println!("# tallymer produced/found {:}", tally_path.to_str().unwrap());
-    
-    // Parameters
-    let seq_params = seqtable::SeqTableParams {
-	   cut_length: args.flag_cut_size,
-	   plus_offset: args.flag_plus_offset,
-	   minus_offset: args.flag_minus_offset,
-	   read_length: args.flag_read_size };
-
-    // Generate sequence table
-    fasta::process_fasta(&args.arg_fasta_file, &tally_path, seq_params, &args.flag_out);
-    println!("# seqtable produced {}", &args.flag_out);
-    
-    // Generate counts table
-    let has_bam = args.arg_bam_file.is_some();
-    let counts = counts::tabulate(&args.flag_out, args.arg_bam_file, args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired);
-    counts::print_counts(&counts, has_bam);
 }
