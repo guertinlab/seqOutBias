@@ -5,7 +5,10 @@ use htslib::bam;
 use htslib::bam::Read;
 use htslib::bam::Reader;
 use htslib::bam::Records;
+use std::path::Path;
 use std::fs::File;
+use std::ffi::OsString;
+use std::ffi::OsStr;
 use std::io::Read as ioRead;
 use std::io::Write as ioWrite;
 use std::io::Seek;
@@ -14,10 +17,13 @@ use std::process::exit;
 use std::iter::Peekable;
 use seqtable::{SeqTable,SequenceInfo};
 use std::collections::BTreeMap;
+use bigwig::write_bigwig;
+use bigwig::Strand;
 
 #[derive(Debug)]
 pub struct PileUp {
     chroms: Vec<String>,
+    chrom_sizes: Vec<u32>,
     counts: Vec<BTreeMap<u32, (f64, f64)>>,
     minus_shift: i32,
     no_scale: bool,
@@ -28,13 +34,15 @@ impl PileUp {
     fn new(sinfos: Vec<SequenceInfo>, minus_shift: i32, no_scale: bool) -> PileUp {
         let mut chroms = Vec::new();
         let mut counts = Vec::new();
+        let mut chrom_sizes = Vec::new();
         
         for sinfo in sinfos {
             chroms.push(sinfo.name.clone());
+            chrom_sizes.push(sinfo.length);
             counts.push(BTreeMap::new());
         }
         
-        PileUp { chroms: chroms, counts: counts, minus_shift: minus_shift, no_scale: no_scale}
+        PileUp { chroms: chroms, chrom_sizes: chrom_sizes, counts: counts, minus_shift: minus_shift, no_scale: no_scale}
     }
     
     fn add_data<R: ioRead+Seek>(&mut self, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, minqual: u8, scale: &Vec<(f64, f64)>) -> bool {
@@ -108,6 +116,40 @@ impl PileUp {
             }
         }
         Ok(())
+    }
+    
+    fn bw_stranded_filename(filename: &str, strand: Strand) -> OsString {
+        let def_ext : &OsStr = OsStr::new("bw");
+        let mut basename: OsString = Path::new(filename).file_stem().unwrap_or(OsStr::new(filename)).to_os_string();
+        let extension = Path::new(filename).extension().unwrap_or(def_ext).to_os_string();
+        
+        match strand {
+            Strand::Plus => basename.push("_plus."),
+            Strand::Minus => basename.push("_minus."),
+            Strand::Both => unreachable!(),  
+        }
+        basename.push(extension);
+        
+        return basename;
+    }
+    
+    pub fn write_bw(&self, filename: &str, stranded: bool) -> Result<(String
+    , Option<String>), Error> {
+        if stranded {
+            let output_plus = PileUp::bw_stranded_filename(filename, Strand::Plus);
+            let output_minus = PileUp::bw_stranded_filename(filename, Strand::Minus);
+            
+	        match write_bigwig(&output_plus, &self.chroms, &self.chrom_sizes, &self.counts, Strand::Plus) {
+                Ok(_) => {
+                    try!(write_bigwig(&output_minus, &self.chroms, &self.chrom_sizes, &self.counts, Strand::Minus));
+                    Ok((output_plus.into_string().unwrap(), Some(output_minus.into_string().unwrap())))
+                },
+                Err(err) => Err(err),
+            }
+        } else {
+            try!(write_bigwig(OsStr::new(filename), &self.chroms, &self.chrom_sizes, &self.counts, Strand::Both));
+            Ok((String::from(filename), None))
+        }
     }
 }
 

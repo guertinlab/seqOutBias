@@ -11,10 +11,12 @@ mod tallyread;
 mod seqtable;
 mod fasta;
 mod counts;
+mod bigwig;
 mod scale;
 
 use docopt::Docopt;
 use std::process::exit;
+use std::error::Error;
 
 /* Main usage/arguments */
 
@@ -43,7 +45,8 @@ Options:
   --qual=<q>            Minimum read quality [default: 0].
   --regions=<bedfile>   Count only cut-sites inside the regions indicated in the BED file.
   --out=<outfile>       Output seqtable filename [default: output.tbl].
-  --bed=<bedfile>       Output scaled BED filename [default: output.bed]. 
+  --bed=<bedfile>       Output scaled BED filename [default: output.bed].
+  --bw=<bigwigfile>     Output scaled BigWig filename [default: output.bw].
   --stranded            Output per strand counts when writting scaled values.
   --shift-counts        Shift minus strand counts.
   --no-scale            Skip actual scalling in 'scale' command.
@@ -70,6 +73,7 @@ struct Args {
     flag_out: String,
     flag_stranded: bool,
     flag_bed: String,
+    flag_bw: String,
     flag_shift_counts: bool,
     flag_no_scale: bool,
     flag_pdist: Option<String>,
@@ -164,8 +168,23 @@ fn main() {
         let counts = counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file, args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired);
         let pileup = scale::scale(&args.arg_seqtbl_file, counts, bamfile, args.flag_qual, args.flag_shift_counts, args.flag_no_scale);
         
-        pileup.write_bed(&args.flag_bed, args.flag_stranded).unwrap();
-        println!("# scale produced {}", &args.flag_bed);
+        match pileup.write_bed(&args.flag_bed, args.flag_stranded) {
+            Ok(_) => println!("# scale produced {}", &args.flag_bed),
+            Err(err) => println!("Error producing BED file: {}", err.description()),
+        }
+        
+        match pileup.write_bw(&args.flag_bw, args.flag_stranded) {
+            Ok((f1, f2)) => {
+                if f2.is_some() {
+                    println!("# scale produced {}", f1);
+                    println!("# scale produced {}", f2.unwrap());
+                } else {
+                    println!("# scale produced {}", &args.flag_bw);    
+                }
+            },
+            Err(err) => println!("Error producing BigWig file: {}", err.description()), 
+        }
+        
         return;
     }
     
