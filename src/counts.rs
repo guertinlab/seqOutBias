@@ -328,6 +328,8 @@ pub fn tabulate(seqfile: &str, bamfile: Option<&Vec<String>>, minqual: u8, regio
         };
         
         for bamfilename in bamfilenames {
+            println!("# tabulate {}", bamfilename);
+            
             let bam = bam::Reader::new(&bamfilename).ok().expect("Error opening bam.");
             let names = bam.header.target_names();
             let mut cur_tid = 0;

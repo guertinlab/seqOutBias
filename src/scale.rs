@@ -197,6 +197,7 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
     let mut pileup = PileUp::new(&seqinfos, minus_shift, no_scale);
     
     for bamfile in bamfiles {
+        println!("# scale {}", &bamfile);
         let bam = bam::Reader::new(&Path::new(bamfile)).ok().expect("Error opening bam.");
         let names = bam.header.target_names();
         let mut cur_tid = 0;
