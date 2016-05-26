@@ -297,7 +297,7 @@ fn region_counts<R: ioRead + Seek>(table: &mut SeqTable<R>, bedregions: &str) ->
     counts
 }
 
-pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8, regions: Option<String>, pair_range: Option<(i32, i32)>, paired: bool) -> Vec<(u64, u64, u64, u64)> {
+pub fn tabulate(seqfile: &str, bamfile: Option<&Vec<String>>, minqual: u8, regions: Option<String>, pair_range: Option<(i32, i32)>, paired: bool) -> Vec<(u64, u64, u64, u64)> {
     // read
     let file = File::open(seqfile).ok().expect("read file");
     let mut table = match SeqTable::open(file) {
@@ -319,27 +319,7 @@ pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8, regions: Op
     let seqinfos = table.sequences();
         
     // if we received a BAM file, parse it
-    if let Some(bamfilename) = bamfile {
-        let bam = bam::Reader::new(&bamfilename).ok().expect("Error opening bam.");
-	    let names = bam.header.target_names();
-        let mut cur_tid = 0;
-        
-        // map BAM tid's to SeqTable idx's
-        let map : Vec<usize> = names.iter().map(|&id| {
-            let chrom = String::from_utf8_lossy(id);
-            for i in 0..seqinfos.len() {
-                if seqinfos[i].name.eq(&chrom) {
-                    return i;
-                }
-            }
-            println!("Error: Unknown sequence name in BAM: {}", chrom);
-            exit(1);
-        }
-        ).collect();
-        
-        // reads
-        let mut iter = bam.records().peekable();
-        
+    if let Some(bamfilenames) = bamfile {
         // bed regions
         let ranges = if let Some(regfile) = regions {
             Some(bed_regions(&regfile, &mut table))
@@ -347,18 +327,40 @@ pub fn tabulate(seqfile: &str, bamfile: Option<String>, minqual: u8, regions: Op
             None
         };
         
-        if pair_range.is_some() || paired {
-            let checker = PairedChecker {
-                read_length: rlen,
-                min_quality: minqual,
-                min_dist: 0,
-                max_dist: 0,
-                force_paired: paired,
-            };
-            while process_bam_seq(&mut counts, &mut table, &mut iter, &mut cur_tid, &map, &checker, ranges.as_ref()) {}
-        } else {
-            let checker = SingleChecker { read_length: rlen, min_quality: minqual };
-            while process_bam_seq(&mut counts, &mut table, &mut iter, &mut cur_tid, &map, &checker, ranges.as_ref()) {}
+        for bamfilename in bamfilenames {
+            let bam = bam::Reader::new(&bamfilename).ok().expect("Error opening bam.");
+            let names = bam.header.target_names();
+            let mut cur_tid = 0;
+            
+            // map BAM tid's to SeqTable idx's
+            let map : Vec<usize> = names.iter().map(|&id| {
+                let chrom = String::from_utf8_lossy(id);
+                for i in 0..seqinfos.len() {
+                    if seqinfos[i].name.eq(&chrom) {
+                        return i;
+                    }
+                }
+                println!("Error: Unknown sequence name in BAM: {}", chrom);
+                exit(1);
+            }
+            ).collect();
+            
+            // reads
+            let mut iter = bam.records().peekable();
+            
+            if pair_range.is_some() || paired {
+                let checker = PairedChecker {
+                    read_length: rlen,
+                    min_quality: minqual,
+                    min_dist: 0,
+                    max_dist: 0,
+                    force_paired: paired,
+                };
+                while process_bam_seq(&mut counts, &mut table, &mut iter, &mut cur_tid, &map, &checker, ranges.as_ref()) {}
+            } else {
+                let checker = SingleChecker { read_length: rlen, min_quality: minqual };
+                while process_bam_seq(&mut counts, &mut table, &mut iter, &mut cur_tid, &map, &checker, ranges.as_ref()) {}
+            }
         }
     }
     

@@ -31,7 +31,7 @@ pub struct PileUp {
 
 impl PileUp {
     
-    fn new(sinfos: Vec<SequenceInfo>, minus_shift: i32, no_scale: bool) -> PileUp {
+    fn new(sinfos: &Vec<SequenceInfo>, minus_shift: i32, no_scale: bool) -> PileUp {
         let mut chroms = Vec::new();
         let mut counts = Vec::new();
         let mut chrom_sizes = Vec::new();
@@ -174,7 +174,7 @@ fn compute_scale_factors(counts: &Vec<(u64, u64, u64, u64)>) -> Vec<(f64, f64)> 
     }).collect()
 }
 
-pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: &str, minqual: u8, shift: bool, no_scale: bool) -> PileUp {
+pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<String>, minqual: u8, shift: bool, no_scale: bool) -> PileUp {
     // read
     let file = File::open(seqfile).ok().expect("read file");
     let mut table = match SeqTable::open(file) {
@@ -186,25 +186,6 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: &str, mi
     };
     
     let seqinfos = table.sequences();
-
-    let bam = bam::Reader::new(&Path::new(bamfile)).ok().expect("Error opening bam.");
-    let names = bam.header.target_names();
-    let mut cur_tid = 0;
-    
-    // map BAM tid's to SeqTable idx's
-    let map : Vec<usize> = names.iter().map(|&id| {
-        let chrom = String::from_utf8_lossy(id);
-        for i in 0..seqinfos.len() {
-            if seqinfos[i].name.eq(&chrom) {
-                return i;
-            }
-        }
-        println!("Error: Unknown sequence name in BAM: {}", chrom);
-        exit(1);
-    }
-    ).collect();
-    
-    // reads
     let minus_shift = if shift {
         let res = (table.params.plus_offset as i16 - (table.params.cut_length as i16 - table.params.minus_offset as i16 - 1i16)) as i32;
         println!("# minus strand shift = {} bp", res);
@@ -212,12 +193,33 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfile: &str, mi
     } else {
         0i32
     };
+
+    let mut pileup = PileUp::new(&seqinfos, minus_shift, no_scale);
     
-    let mut iter = bam.records().peekable();
-    let mut pileup = PileUp::new(seqinfos, minus_shift, no_scale);
-    let scale = compute_scale_factors(&counts);
-    
-    while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, minqual, &scale) {}
+    for bamfile in bamfiles {
+        let bam = bam::Reader::new(&Path::new(bamfile)).ok().expect("Error opening bam.");
+        let names = bam.header.target_names();
+        let mut cur_tid = 0;
+        
+        // map BAM tid's to SeqTable idx's
+        let map : Vec<usize> = names.iter().map(|&id| {
+            let chrom = String::from_utf8_lossy(id);
+            for i in 0..seqinfos.len() {
+                if seqinfos[i].name.eq(&chrom) {
+                    return i;
+                }
+            }
+            println!("Error: Unknown sequence name in BAM: {}", chrom);
+            exit(1);
+        }
+        ).collect();
+        
+        // reads        
+        let mut iter = bam.records().peekable();
+        let scale = compute_scale_factors(&counts);
+        
+        while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, minqual, &scale) {}
+    }
     
     pileup
 }
