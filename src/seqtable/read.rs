@@ -135,6 +135,10 @@ impl<R: Read + Seek> SeqTable<R> {
         let counts: Vec<(u64, u64, u64, u64)> = (decode_from(&mut self.reader, bincode::SizeLimit::Infinite)).unwrap();
         Ok(counts)
     }
+    
+    pub fn len(&self) -> usize {
+        self.infotable.len()
+    }
 }
 
 #[derive(Debug)]
