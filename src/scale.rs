@@ -19,6 +19,7 @@ use seqtable::{SeqTable,SequenceInfo};
 use std::collections::BTreeMap;
 use bigwig::write_bigwig;
 use bigwig::Strand;
+use filter::{RecordCheck, PairedChecker, SingleChecker};
 
 #[derive(Debug)]
 pub struct PileUp {
@@ -45,7 +46,7 @@ impl PileUp {
         PileUp { chroms: chroms, chrom_sizes: chrom_sizes, counts: counts, minus_shift: minus_shift, no_scale: no_scale}
     }
     
-    fn add_data<R: ioRead+Seek>(&mut self, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, minqual: u8, scale: &Vec<(f64, f64)>) -> bool {
+    fn add_data<R: ioRead+Seek, C: RecordCheck>(&mut self, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, scale: &Vec<(f64, f64)>, checker: &C) -> bool {
         // skip unmapped sequences (tid = -1)
         if *tid < 0 {
             match bamrecs.next() {
@@ -69,7 +70,7 @@ impl PileUp {
             
             // if not count position
             if let Some(Ok(record)) = bamrecs.next() {
-                if !record.is_unmapped() && record.seq().len() == rlen && record.mapq() >= minqual {
+                if checker.valid(&record) {
                     let (plus_idx, minus_idx) = rdr.get(record.pos() as u32).unwrap();
                     
                     if record.is_reverse() {
@@ -174,7 +175,7 @@ fn compute_scale_factors(counts: &Vec<(u64, u64, u64, u64)>) -> Vec<(f64, f64)> 
     }).collect()
 }
 
-pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<String>, minqual: u8, shift: bool, no_scale: bool) -> PileUp {
+pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<String>, minqual: u8, shift: bool, no_scale: bool, pair_range: &Option<(i32, i32)>, paired: bool) -> PileUp {
     // read
     let file = File::open(seqfile).ok().expect("read file");
     let mut table = match SeqTable::open(file) {
@@ -186,6 +187,7 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
     };
     
     let seqinfos = table.sequences();
+    let rlen = table.params.read_length as usize;
     let minus_shift = if shift {
         let res = (table.params.plus_offset as i16 - (table.params.cut_length as i16 - table.params.minus_offset as i16 - 1i16)) as i32;
         println!("# minus strand shift = {} bp", res);
@@ -219,7 +221,19 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
         let mut iter = bam.records().peekable();
         let scale = compute_scale_factors(&counts);
         
-        while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, minqual, &scale) {}
+        if pair_range.is_some() || paired {
+            let checker = PairedChecker {
+                read_length: rlen,
+                min_quality: minqual,
+                min_dist: 0,
+                max_dist: 0,
+                force_paired: paired,
+            };
+            while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, &scale, &checker) {}
+        } else {
+            let checker = SingleChecker { read_length: rlen, min_quality: minqual };
+            while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, &scale, &checker) {}
+        }
     }
     
     pileup

@@ -6,7 +6,6 @@ use htslib::bam;
 use htslib::bam::Read;
 use htslib::bam::Reader;
 use htslib::bam::Records;
-use htslib::bam::record::Record;
 use std::fs::File;
 use std::io::Read as ioRead;
 use std::io::Seek;
@@ -21,6 +20,7 @@ use std::process::exit;
 use std::iter::Peekable;
 use seqtable::{SeqTable,SequenceInfo};
 use std::cmp::Ordering;
+use filter::{RecordCheck, PairedChecker, SingleChecker};
 
 struct KeyIter {
     kmer: Vec<u8>,
@@ -172,50 +172,6 @@ impl Iterator for BedRanges {
     self.row_idx += 1;
     result
   }
-}
-
-trait RecordCheck {
-    fn valid(&self, rec: &Record) -> bool;
-}
-
-struct SingleChecker {
-    read_length: usize,
-    min_quality: u8,
-}
-
-impl RecordCheck for SingleChecker {
-    fn valid(&self, record: &Record) -> bool {
-        !record.is_unmapped() && record.seq().len() == self.read_length && record.mapq() >= self.min_quality
-    }
-}
-
-struct PairedChecker {
-    read_length: usize,
-    min_quality: u8,
-    min_dist: i32,
-    max_dist: i32,
-    force_paired: bool,
-}
-
-impl RecordCheck for PairedChecker {
-    fn valid(&self, record: &Record) -> bool {
-        // check single read conditions
-        if record.is_unmapped() || record.seq().len() == self.read_length || record.mapq() >= self.min_quality {
-            return false;
-        }
-        // mandatory paired condition
-        if ( !record.is_paired() || record.is_mate_unmapped() || record.tid() != record.mtid() ) && self.force_paired {
-            return false;
-        }
-        // check pair distance 
-        if record.is_paired() {
-            let dist = (record.pos() - record.mpos()).abs() + self.read_length as i32;
-            if dist < self.min_dist || dist > self.max_dist {
-                return false;
-            }
-        }
-        true
-    }
 }
 
 fn process_bam_seq<R: ioRead+Seek, C: RecordCheck>(counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, checker: &C, regions: Option<&BedRanges>) -> bool {

@@ -10,6 +10,7 @@ mod tallyrun;
 mod tallyread;
 mod seqtable;
 mod fasta;
+mod filter;
 mod counts;
 mod bigwig;
 mod scale;
@@ -217,7 +218,7 @@ fn main() {
     if run_scale {
         let bamfile = args.arg_bam_file.as_ref().unwrap()[0].clone(); // use the first name for reference
         let counts = counts::tabulate(&seqtable_file, args.arg_bam_file.as_ref(), args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired);
-        let pileup = scale::scale(&seqtable_file, counts, args.arg_bam_file.as_ref().unwrap(), args.flag_qual, args.flag_shift_counts, args.flag_no_scale);
+        let pileup = scale::scale(&seqtable_file, counts, args.arg_bam_file.as_ref().unwrap(), args.flag_qual, args.flag_shift_counts, args.flag_no_scale, &dist_range, args.flag_only_paired);
         
         if !args.flag_skip_bed {
             let outfile_bed = if args.flag_no_scale {
