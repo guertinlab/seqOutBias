@@ -7,7 +7,8 @@ authors = ["André Martins <alm253@cornell.edu>"]
 docopt = "0.6"
 rustc-serialize = "0.3"
 num = "*"
-rust-htslib = "0.5"
+rust-htslib = "0.6"
 flate2 = "0.2"
 byteorder="0.5"
 bincode = "0.5"
+
