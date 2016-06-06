@@ -26,7 +26,7 @@ pub struct PairedChecker {
 impl RecordCheck for PairedChecker {
     fn valid(&self, record: &Record) -> bool {
         // check single read conditions
-        if record.is_unmapped() || record.seq().len() == self.read_length || record.mapq() >= self.min_quality {
+        if record.is_unmapped() || record.seq().len() != self.read_length || record.mapq() < self.min_quality {
             return false;
         }
         // mandatory paired condition
