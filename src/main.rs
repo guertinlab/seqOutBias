@@ -200,7 +200,8 @@ fn main() {
     
     // phase 2 - seqtable
     let seqtable_file = if run_seqtable {
-        let outfile = stem_filename(&args.arg_fasta_file, ".tbl", args.flag_out);
+        let suffix = format!("_{}.{}.{}.{}.tbl", args.flag_read_size, args.flag_cut_size, args.flag_plus_offset, args.flag_minus_offset);
+        let outfile = stem_filename(&args.arg_fasta_file, &suffix, args.flag_out);
         
         let seq_params = seqtable::SeqTableParams {
             cut_length: args.flag_cut_size,
