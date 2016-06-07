@@ -207,6 +207,11 @@ fn main() {
     
     // phase 1 - tallymer
     let tally_path = if run_tallymer {
+        if !file_exists(&args.arg_fasta_file) {
+            println!("Error: FASTA file {} does not exist!", args.arg_fasta_file);
+            exit(1);
+        }
+        
         let path = tallyrun::tallymer_createfile(&args.arg_fasta_file, args.flag_read_size, args.flag_parts);
         println!("# tallymer produced/found {:}", path.to_str().unwrap());
         Some(path)
