@@ -222,12 +222,23 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
         let scale = compute_scale_factors(&counts);
         
         if pair_range.is_some() || paired {
-            let checker = PairedChecker {
-                read_length: rlen,
-                min_quality: minqual,
-                min_dist: 0,
-                max_dist: 0,
-                force_paired: paired,
+            let checker = match *pair_range {
+                Some((min, max)) => PairedChecker {
+                    read_length: rlen,
+                    min_quality: minqual,
+                    min_dist: min,
+                    max_dist: max,
+                    force_paired: paired,
+                    max_distance: true,
+                },
+                None => PairedChecker {
+                    read_length: rlen,
+                    min_quality: minqual,
+                    min_dist: 0,
+                    max_dist: 0,
+                    force_paired: paired,
+                    max_distance: false,
+                },
             };
             while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, &scale, &checker) {}
         } else {

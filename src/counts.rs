@@ -294,12 +294,23 @@ fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceIn
     let mut iter = bam.records().peekable();
     
     if pair_range.is_some() || paired {
-        let checker = PairedChecker {
-            read_length: rlen,
-            min_quality: minqual,
-            min_dist: 0,
-            max_dist: 0,
-            force_paired: paired,
+        let checker = match *pair_range {
+            Some((min, max)) => PairedChecker {
+                read_length: rlen,
+                min_quality: minqual,
+                min_dist: min,
+                max_dist: max,
+                force_paired: paired,
+                max_distance: true,
+            },
+            None => PairedChecker {
+                read_length: rlen,
+                min_quality: minqual,
+                min_dist: 0,
+                max_dist: 0,
+                force_paired: paired,
+                max_distance: false,
+            },
         };
         while process_bam_seq(counts, table, &mut iter, &mut cur_tid, &map, &checker, regions) {}
     } else {

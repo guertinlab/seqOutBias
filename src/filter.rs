@@ -21,6 +21,7 @@ pub struct PairedChecker {
     pub min_dist: i32,
     pub max_dist: i32,
     pub force_paired: bool,
+    pub max_distance: bool,
 }
 
 impl RecordCheck for PairedChecker {
@@ -34,7 +35,7 @@ impl RecordCheck for PairedChecker {
             return false;
         }
         // check pair distance 
-        if record.is_paired() {
+        if record.is_paired() && self.max_distance {
             let dist = (record.pos() - record.mpos()).abs() + self.read_length as i32;
             if dist < self.min_dist || dist > self.max_dist {
                 return false;
