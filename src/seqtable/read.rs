@@ -124,6 +124,13 @@ impl<R: Read + Seek> SeqTable<R> {
         &self.params
     }
     
+    pub fn equivalent(&self, _: &str, params: &SeqTableParams) -> bool {
+        self.params.read_length == params.read_length &&
+        self.params.cut_length == params.cut_length &&
+        self.params.plus_offset == params.plus_offset &&
+        self.params.minus_offset == params.minus_offset
+    }
+    
     pub fn sequences(&self) -> Vec<SequenceInfo> {
         self.infotable.iter().map(|info| 
             SequenceInfo{ name: info.name.clone(), length: info.length }

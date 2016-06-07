@@ -19,6 +19,10 @@ use docopt::Docopt;
 use std::process::exit;
 use std::error::Error;
 use std::path::Path;
+use std::fs;
+use std::fs::File;
+use std::io::ErrorKind;
+use seqtable::SeqTable;
 
 /* Main usage/arguments */
 
@@ -119,6 +123,16 @@ fn stem_filename(stem_src: &str, suffix: &str, out_arg: Option<String>) -> Strin
     }
 }
 
+fn file_exists(filename: &str) -> bool {
+	match fs::metadata(filename) {
+		Ok(meta) => meta.is_file(),
+		Err(err) => match err.kind() {
+			ErrorKind::NotFound => false,
+			_ => { println!("Failed to open file {}: {:}", filename, err); exit(-1) },
+		}, 
+	}
+}
+
 fn main() {
     // Parse command line arguments
     let args: Args = Docopt::new(USAGE)
@@ -208,15 +222,41 @@ fn main() {
             plus_offset: args.flag_plus_offset,
             minus_offset: args.flag_minus_offset,
             read_length: args.flag_read_size };
-        fasta::process_fasta(&args.arg_fasta_file, &tally_path.unwrap(), seq_params, &outfile);
-        println!("# seqtable produced {}", &outfile);
-        outfile
+        
+        if file_exists(&outfile) {
+            let file = File::open(&outfile).ok().expect("read file");
+            let table = match SeqTable::open(file) {
+                Ok(value) => value,
+                Err(e) => {
+                    println!("Error: seqtable: {}", e.to_string()); 
+                    exit(1);
+                },
+            };
+            if table.equivalent(&outfile, &seq_params) {
+                println!("# seqtable reusing existing {}", &outfile);
+                outfile
+            } else {
+                println!("Error: seqtable: output file {} already exists but does not match requested parameters!", outfile); 
+                exit(1);
+            }
+        } else {
+            fasta::process_fasta(&args.arg_fasta_file, &tally_path.unwrap(), seq_params, &outfile);
+            println!("# seqtable produced {}", &outfile);
+            outfile
+        }
     } else {
         args.arg_seqtbl_file
     };
     
     // phase 3 - tabulate & scale
     if run_scale {
+        for filename in args.arg_bam_file.as_ref().unwrap() {
+            if !file_exists(filename) {
+                println!("Error: BAM file {} does not exist!", filename);
+                exit(1);
+            }
+        }
+        
         let bamfile = args.arg_bam_file.as_ref().unwrap()[0].clone(); // use the first name for reference
         let counts = counts::tabulate(&seqtable_file, args.arg_bam_file.as_ref(), args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired);
         let pileup = scale::scale(&seqtable_file, counts, args.arg_bam_file.as_ref().unwrap(), args.flag_qual, args.flag_shift_counts, args.flag_no_scale, &dist_range, args.flag_only_paired);
@@ -227,6 +267,11 @@ fn main() {
                 } else {
                     stem_filename(&bamfile, "_scaled.bed", args.flag_bed)
                 };
+            
+            if file_exists(&outfile_bed) {
+                println!("Error: output BED file {} already exists!", outfile_bed);
+                exit(1);
+            }
             
             match pileup.write_bed(&outfile_bed, args.flag_stranded) {
                 Ok(_) => println!("# scale produced {}", &outfile_bed),
