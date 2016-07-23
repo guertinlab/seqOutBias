@@ -33,7 +33,7 @@ Usage:
   enzcut tallymer <fasta-file> <read-size> [--parts=<n>]
   enzcut seqtable <fasta-file> [options]
   enzcut dump <seqtbl-file> [<seqrange>]
-  enzcut table <seqtbl-file> [<bam-file>...] [--qual=<q>] [--regions=<bedfile>] [--pdist=<min:max>] [--only-paired]
+  enzcut table <seqtbl-file> [<bam-file>...] [--qual=<q>] [--regions=<bedfile>] [--pdist=<min:max>] [--only-paired] [--exact-length]
   enzcut scale <seqtbl-file> <bam-file>... [options]
   enzcut <fasta-file> <bam-file>... [options]
   enzcut (-h | --help)
@@ -60,6 +60,7 @@ Options:
   --no-scale            Skip actual scalling in 'scale' command.
   --pdist=<min:max>     Distance range for included paired reads.
   --only-paired         Only accept aligned reads that have a mapped pair.
+  --exact-length        Only accept BAM reads with length equal to 'read-size'.
 ";
 
 #[derive(Debug, RustcDecodable)]
@@ -88,6 +89,7 @@ struct Args {
     flag_no_scale: bool,
     flag_pdist: Option<String>,
     flag_only_paired: bool,
+    flag_exact_length: bool,
     cmd_tallymer: bool,
     cmd_seqtable: bool,
     cmd_dump: bool,
@@ -166,7 +168,7 @@ fn main() {
     
     if args.cmd_table {
         let has_bam = args.arg_bam_file.is_some();
-        let counts = counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file.as_ref(), args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired);
+        let counts = counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file.as_ref(), args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired, args.flag_exact_length);
         counts::print_counts(&counts, has_bam);
         return;
     }
@@ -263,8 +265,8 @@ fn main() {
         }
         
         let bamfile = args.arg_bam_file.as_ref().unwrap()[0].clone(); // use the first name for reference
-        let counts = counts::tabulate(&seqtable_file, args.arg_bam_file.as_ref(), args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired);
-        let pileup = scale::scale(&seqtable_file, counts, args.arg_bam_file.as_ref().unwrap(), args.flag_qual, args.flag_shift_counts, args.flag_no_scale, &dist_range, args.flag_only_paired);
+        let counts = counts::tabulate(&seqtable_file, args.arg_bam_file.as_ref(), args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired, args.flag_exact_length);
+        let pileup = scale::scale(&seqtable_file, counts, args.arg_bam_file.as_ref().unwrap(), args.flag_qual, args.flag_shift_counts, args.flag_no_scale, &dist_range, args.flag_only_paired, args.flag_exact_length);
         
         if !args.flag_skip_bed {
             let outfile_bed = if args.flag_no_scale {

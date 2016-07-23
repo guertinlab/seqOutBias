@@ -199,13 +199,13 @@ fn process_bam_seq<R: ioRead+Seek, C: RecordCheck>(counts: &mut Vec<(u64, u64, u
         if let Some(Ok(record)) = bamrecs.next() {
             // point in regions
             let good = match regions.as_ref() {
-                Some(ref ranges) => ranges.contains(chrom_idx, record.pos() as u32),
+                Some(ref ranges) => ranges.contains(chrom_idx, checker.virPos(&record)),
                 None => true,
             };
             
             //
             if good && checker.valid(&record) {
-                let pair = rdr.get(record.pos() as u32).unwrap();
+                let pair = rdr.get(checker.virPos(&record)).unwrap();
                 
                 if record.is_reverse() {
                     counts[pair.1 as usize].3 += 1;
@@ -255,22 +255,10 @@ fn region_counts<R: ioRead + Seek>(table: &mut SeqTable<R>, bedregions: &str) ->
         
     }
     
-    /*
-    for (idx, range) in bediter {
-        let mut rdr = table.get_sequence_by_idx(idx).ok().expect("read sequence");
-        
-        for position in range {
-            let pair = rdr.get(position).unwrap();
-            counts[pair.0 as usize].0 += 1;
-            counts[pair.1 as usize].1 += 1;
-        } 
-    }
-    */
-    
     counts
 }
 
-fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceInfo>, pair_range: &Option<(i32, i32)>, paired: bool, rlen: usize, minqual: u8, counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, regions: Option<&BedRanges>) {
+fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceInfo>, pair_range: &Option<(i32, i32)>, paired: bool, rlen: usize, minqual: u8, counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, regions: Option<&BedRanges>, exact_length: bool) {
     println!("# tabulate {}", bamfilename);
             
     let bam = bam::Reader::new(&bamfilename).ok().expect("Error opening bam.");
@@ -296,6 +284,7 @@ fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceIn
     if pair_range.is_some() || paired {
         let checker = match *pair_range {
             Some((min, max)) => PairedChecker {
+                exact_length: exact_length,
                 read_length: rlen,
                 min_quality: minqual,
                 min_dist: min,
@@ -304,6 +293,7 @@ fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceIn
                 max_distance: true,
             },
             None => PairedChecker {
+                exact_length: exact_length,
                 read_length: rlen,
                 min_quality: minqual,
                 min_dist: 0,
@@ -314,12 +304,12 @@ fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceIn
         };
         while process_bam_seq(counts, table, &mut iter, &mut cur_tid, &map, &checker, regions) {}
     } else {
-        let checker = SingleChecker { read_length: rlen, min_quality: minqual };
+        let checker = SingleChecker { exact_length: exact_length, read_length: rlen, min_quality: minqual };
         while process_bam_seq(counts, table, &mut iter, &mut cur_tid, &map, &checker, regions) {}
     }
 }
 
-pub fn tabulate(seqfile: &str, bamfile: Option<&Vec<String>>, minqual: u8, regions: Option<String>, pair_range: Option<(i32, i32)>, paired: bool) -> Vec<(u64, u64, u64, u64)> {
+pub fn tabulate(seqfile: &str, bamfile: Option<&Vec<String>>, minqual: u8, regions: Option<String>, pair_range: Option<(i32, i32)>, paired: bool, exact_length: bool) -> Vec<(u64, u64, u64, u64)> {
     // read
     let file = File::open(seqfile).ok().expect("read file");
     let mut table = match SeqTable::open(file) {
@@ -350,7 +340,7 @@ pub fn tabulate(seqfile: &str, bamfile: Option<&Vec<String>>, minqual: u8, regio
         };
         
         for bamfilename in bamfilenames {
-            tabulate_bam(bamfilename.clone(), &seqinfos, &pair_range, paired, rlen, minqual, &mut counts, &mut table, ranges.as_ref());
+            tabulate_bam(bamfilename.clone(), &seqinfos, &pair_range, paired, rlen, minqual, &mut counts, &mut table, ranges.as_ref(), exact_length);
         }
     }
     

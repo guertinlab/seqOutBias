@@ -71,14 +71,14 @@ impl PileUp {
             // if not count position
             if let Some(Ok(record)) = bamrecs.next() {
                 if checker.valid(&record) {
-                    let (plus_idx, minus_idx) = rdr.get(record.pos() as u32).unwrap();
+                    let (plus_idx, minus_idx) = rdr.get(checker.virPos(&record)).unwrap();
                     
                     if record.is_reverse() {
                         if minus_idx == 0 {
                             /* no data */
                         } else {
                             let inc = if self.no_scale { 1f64 } else { scale[minus_idx as usize].1 };
-                            let minus_pos = ((record.pos() as u32 + rlen as u32 - 1u32) as i32 + self.minus_shift) as u32;
+                            let minus_pos = ((checker.virPos(&record) + rlen as u32 - 1u32) as i32 + self.minus_shift) as u32;
                             self.counts[sidx as usize].entry(minus_pos).or_insert((0f64, 0f64)).1 += inc;
                         }
                     } else {
@@ -86,7 +86,7 @@ impl PileUp {
                             /* no data */
                         } else {
                             let inc = if self.no_scale { 1f64 } else { scale[plus_idx as usize].0 };
-                            self.counts[sidx as usize].entry(record.pos() as u32).or_insert((0f64, 0f64)).0 += inc;
+                            self.counts[sidx as usize].entry(checker.virPos(&record)).or_insert((0f64, 0f64)).0 += inc;
                         }
                     } 
                 }
@@ -175,7 +175,7 @@ fn compute_scale_factors(counts: &Vec<(u64, u64, u64, u64)>) -> Vec<(f64, f64)> 
     }).collect()
 }
 
-pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<String>, minqual: u8, shift: bool, no_scale: bool, pair_range: &Option<(i32, i32)>, paired: bool) -> PileUp {
+pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<String>, minqual: u8, shift: bool, no_scale: bool, pair_range: &Option<(i32, i32)>, paired: bool, exact_length: bool) -> PileUp {
     // read
     let file = File::open(seqfile).ok().expect("read file");
     let mut table = match SeqTable::open(file) {
@@ -224,6 +224,7 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
         if pair_range.is_some() || paired {
             let checker = match *pair_range {
                 Some((min, max)) => PairedChecker {
+                    exact_length: exact_length,
                     read_length: rlen,
                     min_quality: minqual,
                     min_dist: min,
@@ -232,6 +233,7 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
                     max_distance: true,
                 },
                 None => PairedChecker {
+                    exact_length: exact_length,
                     read_length: rlen,
                     min_quality: minqual,
                     min_dist: 0,
@@ -242,7 +244,7 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
             };
             while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, &scale, &checker) {}
         } else {
-            let checker = SingleChecker { read_length: rlen, min_quality: minqual };
+            let checker = SingleChecker { exact_length: exact_length, read_length: rlen, min_quality: minqual };
             while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, &scale, &checker) {}
         }
     }
