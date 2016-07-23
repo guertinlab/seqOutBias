@@ -44,8 +44,8 @@ Options:
   --version             Show version.
   --cut-size=<n>        Cut-site size [default: 4].
   --tallymer=<file>     Unmappable positions file produced by tallymer (seq, pos).
-  --plus-offset=<p>     Cut-site offset on plus strand [default: 2]. Eg, p=2 AA[A]A.
-  --minus-offset=<m>    Cut-site offset on minus strand [default: 2]. Eg, m=2 A[A]AA.
+  --plus-offset=<p>     Cut-site offset on plus strand, eg. p=2 AA[A]A [default: 2].
+  --minus-offset=<m>    Cut-site offset on minus strand, eg. Eg, m=2 A[A]AA [default: 2].
   --read-size=<r>       Read length [default: 36].
   --parts=<n>           Split suffix tree generation into n parts [default: 4].
   --qual=<q>            Minimum read quality [default: 0].
