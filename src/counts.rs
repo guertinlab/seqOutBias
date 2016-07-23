@@ -142,7 +142,9 @@ impl BedRanges {
     Ok(BedRanges{ sets: sets, chrom_idx: 0, row_idx: 0})
   }
   
-  fn contains(&self, chrom_idx: usize, position: u32) -> bool {
+  fn contains(&self, chrom_idx: usize, position: i32) -> bool {
+      if position < 0 { return false; }
+      let position = position as u32;
       self.sets[chrom_idx].binary_search_by(|probe| {
           if probe.0 <= position && probe.1 > position {
               Ordering::Equal
@@ -205,7 +207,7 @@ fn process_bam_seq<R: ioRead+Seek, C: RecordCheck>(counts: &mut Vec<(u64, u64, u
             
             //
             if good && checker.valid(&record) {
-                let pair = rdr.get(checker.vir_pos(&record)).unwrap();
+                let pair = rdr.vir_get(checker.vir_pos(&record)).unwrap();
                 
                 if record.is_reverse() {
                     counts[pair.1 as usize].3 += 1;

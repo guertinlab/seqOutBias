@@ -2,7 +2,7 @@ use htslib::bam::record::Record;
 
 pub trait RecordCheck {
     fn valid(&self, rec: &Record) -> bool;
-    fn vir_pos(&self, rec: &Record) -> u32;
+    fn vir_pos(&self, rec: &Record) -> i32;
 }
 
 pub struct SingleChecker {
@@ -11,24 +11,21 @@ pub struct SingleChecker {
     pub min_quality: u8,
 }
 
+fn vir_pos_common(read_length: usize, exact_length: bool, rec: &Record) -> i32 {
+    if exact_length && rec.is_reverse() {
+        rec.pos() + (rec.seq().len() as i32 - read_length as i32)
+    } else {
+        rec.pos()
+    }
+}
+
 impl RecordCheck for SingleChecker {
     fn valid(&self, record: &Record) -> bool {
         !record.is_unmapped() && (!self.exact_length || record.seq().len() == self.read_length) && record.mapq() >= self.min_quality
     }
 
-    fn vir_pos(&self, rec: &Record) -> u32 {
-        if self.exact_length && rec.is_reverse() {
-            let aux = rec.pos() + (rec.seq().len() - self.read_length) as i32;
-            if aux >= 0 {
-                aux as u32
-            }
-            else {
-                0
-            }
-        }
-        else {
-            rec.pos() as u32
-        }
+    fn vir_pos(&self, rec: &Record) -> i32 {
+        vir_pos_common(self.read_length, self.exact_length, rec)
     }
 }
 
@@ -62,18 +59,7 @@ impl RecordCheck for PairedChecker {
         true
     }
 
-    fn vir_pos(&self, rec: &Record) -> u32 {
-        if self.exact_length && rec.is_reverse() {
-            let aux = rec.pos() + (rec.seq().len() - self.read_length) as i32;
-            if aux >= 0 {
-                aux as u32
-            }
-            else {
-                0
-            }
-        }
-        else {
-            rec.pos() as u32
-        }
+    fn vir_pos(&self, rec: &Record) -> i32 {
+        vir_pos_common(self.read_length, self.exact_length, rec)
     }
 }
