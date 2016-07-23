@@ -12,8 +12,8 @@ pub struct SingleChecker {
 }
 
 fn vir_pos_common(read_length: usize, exact_length: bool, rec: &Record) -> i32 {
-    if exact_length && rec.is_reverse() {
-        rec.pos() + (rec.seq().len() as i32 - read_length as i32)
+    if !exact_length && rec.is_reverse() {
+        rec.pos() + (rec.seq().len() as i32) - (read_length as i32)
     } else {
         rec.pos()
     }
