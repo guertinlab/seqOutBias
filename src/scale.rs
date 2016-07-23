@@ -71,14 +71,14 @@ impl PileUp {
             // if not count position
             if let Some(Ok(record)) = bamrecs.next() {
                 if checker.valid(&record) {
-                    let (plus_idx, minus_idx) = rdr.get(checker.virPos(&record)).unwrap();
+                    let (plus_idx, minus_idx) = rdr.get(checker.vir_pos(&record)).unwrap();
                     
                     if record.is_reverse() {
                         if minus_idx == 0 {
                             /* no data */
                         } else {
                             let inc = if self.no_scale { 1f64 } else { scale[minus_idx as usize].1 };
-                            let minus_pos = ((checker.virPos(&record) + rlen as u32 - 1u32) as i32 + self.minus_shift) as u32;
+                            let minus_pos = ((checker.vir_pos(&record) + rlen as u32 - 1u32) as i32 + self.minus_shift) as u32;
                             self.counts[sidx as usize].entry(minus_pos).or_insert((0f64, 0f64)).1 += inc;
                         }
                     } else {
@@ -86,7 +86,7 @@ impl PileUp {
                             /* no data */
                         } else {
                             let inc = if self.no_scale { 1f64 } else { scale[plus_idx as usize].0 };
-                            self.counts[sidx as usize].entry(checker.virPos(&record)).or_insert((0f64, 0f64)).0 += inc;
+                            self.counts[sidx as usize].entry(checker.vir_pos(&record)).or_insert((0f64, 0f64)).0 += inc;
                         }
                     } 
                 }

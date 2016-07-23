@@ -6,7 +6,7 @@ extern crate bincode;
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::io::Result;
-use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
+use byteorder::{LittleEndian, WriteBytesExt};
 use std::mem::size_of;
 use bincode::rustc_serialize::{encode_into, encode, encoded_size};
 use flate2::{Compression,Compress,Flush};

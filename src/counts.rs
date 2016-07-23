@@ -199,13 +199,13 @@ fn process_bam_seq<R: ioRead+Seek, C: RecordCheck>(counts: &mut Vec<(u64, u64, u
         if let Some(Ok(record)) = bamrecs.next() {
             // point in regions
             let good = match regions.as_ref() {
-                Some(ref ranges) => ranges.contains(chrom_idx, checker.virPos(&record)),
+                Some(ref ranges) => ranges.contains(chrom_idx, checker.vir_pos(&record)),
                 None => true,
             };
             
             //
             if good && checker.valid(&record) {
-                let pair = rdr.get(checker.virPos(&record)).unwrap();
+                let pair = rdr.get(checker.vir_pos(&record)).unwrap();
                 
                 if record.is_reverse() {
                     counts[pair.1 as usize].3 += 1;

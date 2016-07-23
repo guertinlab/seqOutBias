@@ -2,7 +2,7 @@ use htslib::bam::record::Record;
 
 pub trait RecordCheck {
     fn valid(&self, rec: &Record) -> bool;
-    fn virPos(&self, rec: &Record) -> u32;
+    fn vir_pos(&self, rec: &Record) -> u32;
 }
 
 pub struct SingleChecker {
@@ -16,7 +16,7 @@ impl RecordCheck for SingleChecker {
         !record.is_unmapped() && (!self.exact_length || record.seq().len() == self.read_length) && record.mapq() >= self.min_quality
     }
 
-    fn virPos(&self, rec: &Record) -> u32 {
+    fn vir_pos(&self, rec: &Record) -> u32 {
         if self.exact_length && rec.is_reverse() {
             let aux = rec.pos() + (rec.seq().len() - self.read_length) as i32;
             if aux >= 0 {
@@ -62,7 +62,7 @@ impl RecordCheck for PairedChecker {
         true
     }
 
-    fn virPos(&self, rec: &Record) -> u32 {
+    fn vir_pos(&self, rec: &Record) -> u32 {
         if self.exact_length && rec.is_reverse() {
             let aux = rec.pos() + (rec.seq().len() - self.read_length) as i32;
             if aux >= 0 {

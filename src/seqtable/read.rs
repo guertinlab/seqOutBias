@@ -8,7 +8,7 @@ use std::io::SeekFrom;
 use std::io::Result;
 use std::io::Error;
 use std::io::ErrorKind;
-use byteorder::{ByteOrder, LittleEndian, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt};
 use bincode::rustc_serialize::{decode_from, decode};
 use flate2::{Decompress,Flush};
 
