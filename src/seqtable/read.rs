@@ -180,6 +180,11 @@ impl<'a, R: 'a + Read + Seek> SeqReader<'a, R> {
         return Ok(block);
     }
     
+    pub fn vir_get(&mut self, position: i32) -> Result<(u16, u16)> { 
+        if position < 0 { Ok((0, 0)) }
+        else { self.get(position as u32) }
+    }
+
     pub fn get(&mut self, position: u32) -> Result<(u16, u16)> {
         let idx = (position / self.block_length) as usize;
         
