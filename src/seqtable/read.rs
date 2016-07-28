@@ -153,7 +153,7 @@ pub struct SeqReader<'a, R: 'a + Read + Seek> {
     reader: &'a mut R,
     block_length: u32,
     info: &'a SeqInfo,
-    block: Option<Vec<(u16, u16)>>,
+    block: Option<Vec<(u32, u32)>>,
     block_idx: usize,
     dec_buffer: &'a mut Vec<u8>,
     read_buffer: &'a mut Vec<u8>,
@@ -161,7 +161,7 @@ pub struct SeqReader<'a, R: 'a + Read + Seek> {
 
 impl<'a, R: 'a + Read + Seek> SeqReader<'a, R> {
     
-    fn read_block(&mut self, block_info: &SeqBlock) -> Result<Vec<(u16,u16)>> {
+    fn read_block(&mut self, block_info: &SeqBlock) -> Result<Vec<(u32,u32)>> {
         
         // read from disk (compressed)
         let buf = &mut self.read_buffer[0..block_info.comp_size as usize];
@@ -175,17 +175,17 @@ impl<'a, R: 'a + Read + Seek> SeqReader<'a, R> {
         decompressor.decompress(&buf, bufout, Flush::Finish).ok().expect("decompressing block");
 
         // decode back into vector
-        let block: Vec<(u16, u16)> = decode(bufout).ok().expect("decode block");
+        let block: Vec<(u32, u32)> = decode(bufout).ok().expect("decode block");
         
         return Ok(block);
     }
     
-    pub fn vir_get(&mut self, position: i32) -> Result<(u16, u16)> { 
+    pub fn vir_get(&mut self, position: i32) -> Result<(u32, u32)> { 
         if position < 0 { Ok((0, 0)) }
         else { self.get(position as u32) }
     }
 
-    pub fn get(&mut self, position: u32) -> Result<(u16, u16)> {
+    pub fn get(&mut self, position: u32) -> Result<(u32, u32)> {
         let idx = (position / self.block_length) as usize;
         
         //println!("get: pos: {} idx: {} blen: {} n_blocks: {} length: {}", position, idx, self.block_length, self.info.blocks.len(), self.info.length);
