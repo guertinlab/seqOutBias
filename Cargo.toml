@@ -1,6 +1,6 @@
 [package]
 name = "enzcut"
-version = "0.9.4"
+version = "0.9.5"
 authors = ["André Martins <alm253@cornell.edu>"]
 
 [dependencies]
