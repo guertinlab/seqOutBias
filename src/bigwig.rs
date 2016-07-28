@@ -56,6 +56,7 @@ pub fn write_bigwig(filename: &OsStr, chroms: &Vec<String>, chrom_sizes: &Vec<u3
     // run wigToBigWig
     let status = Command::new("wigToBigWig")
         .arg("-keepAllChromosomes")
+        .arg("-clip")
         .arg("wiggle.tmp")
         .arg("chromInfo.tmp")
         .arg(filename)
