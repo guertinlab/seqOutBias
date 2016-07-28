@@ -8,12 +8,16 @@ use std::cmp;
 
 const TBL_VERSION : u8 = 3u8;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct SeqTableParams {
 	pub cut_length: u8,
 	pub plus_offset: u8,
 	pub minus_offset: u8,
 	pub read_length: u16,
+  // masked n-mers
+  pub mask: Option<String>,
+  pub unmasked_count: u8,
+
 }
 
 pub trait SeqStore {

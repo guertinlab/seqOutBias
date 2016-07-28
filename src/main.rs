@@ -46,6 +46,7 @@ Options:
   --tallymer=<file>     Unmappable positions file produced by tallymer (seq, pos).
   --plus-offset=<p>     Cut-site offset on plus strand, eg. p=2 AA[A]A [default: 2].
   --minus-offset=<m>    Cut-site offset on minus strand, eg. Eg, m=2 A[A]AA [default: 2].
+  --cutmask=<str>       String representing the cut-site, eg. NNXXNNCXXXXNNXXNN.
   --read-size=<r>       Read length [default: 36].
   --parts=<n>           Split suffix tree generation into n parts [default: 4].
   --qual=<q>            Minimum read quality [default: 0].
@@ -74,6 +75,7 @@ struct Args {
     flag_tallymer: Option<String>,
     flag_plus_offset: u8,
     flag_minus_offset: u8,
+    flag_cutmask: Option<String>,
     flag_version: bool,
     flag_read_size: u16,
     flag_parts: u8,
