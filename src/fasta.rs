@@ -77,7 +77,7 @@ enum State {
 macro_rules! store_base {
     ($e:expr, $b:expr, $n:expr) => {
         match $e.add_base($n) {
-            Some(nmer_index) => $b.push((nmer_index + 1) as u16),
+            Some(nmer_index) => $b.push((nmer_index + 1) as u32),
             None => $b.push(0),
     }};
 }

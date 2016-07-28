@@ -128,7 +128,7 @@ pub struct SequenceWriter<'a, W: 'a + Write> {
     offset: &'a mut u64,
     writer: &'a mut W,
     info: &'a mut SeqInfo,
-    block: Vec<(u16, u16)>,
+    block: Vec<(u32, u32)>,
     compressor: Compress,
     output: Vec<u8>,
     block_length: u32,
@@ -165,7 +165,7 @@ impl<'a, W: 'a + Write> SequenceWriter<'a, W> {
 }
 
 impl<'a, W: 'a + Write> SeqStore for SequenceWriter<'a, W> {   
-    fn write(&mut self, plus: u16, minus: u16) {
+    fn write(&mut self, plus: u32, minus: u32) {
         // add to counts
         self.counts[plus as usize].0 += 1;
         self.counts[minus as usize].1 += 1;

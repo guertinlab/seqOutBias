@@ -17,7 +17,7 @@ pub struct SeqTableParams {
 }
 
 pub trait SeqStore {
-    fn write(&mut self, plus: u16, minus: u16);
+    fn write(&mut self, plus: u32, minus: u32);
 }
 
 mod write;
@@ -39,8 +39,8 @@ pub struct SeqBuffer<'a, S: SeqStore, R: 'a + BufRead> {
     store: S,
     position: u32,
     written: u32, // TODO: consider storing this on SeqStore, i.e., add a method fn count(&self) -> u32
-    plus_values: VecDeque<u16>,
-    minus_values: VecDeque<u16>,
+    plus_values: VecDeque<u32>,
+    minus_values: VecDeque<u32>,
     plus_skip: u16,
     minus_skip: u16,
     common_skip: u16,
@@ -90,7 +90,7 @@ impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
     }
     
     // Write values into underlying SeqStore, masking unmappable positions
-    fn write(&mut self, plus_value: u16, minus_value: u16) {
+    fn write(&mut self, plus_value: u32, minus_value: u32) {
       let UnMapPosition{ plus: unmap_plus, minus: unmap_minus } = self.unmap.is_unmappable(self.written);
             
       let idx_plus = if unmap_plus { 0 } else { plus_value };
@@ -101,7 +101,7 @@ impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
     }
     
     /// Push a new n-mer table index into buffer
-    pub fn push(&mut self, table_index: u16) {
+    pub fn push(&mut self, table_index: u32) {
       if self.common_skip > 0 {
         self.common_skip -= 1;
         self.plus_skip -= 1;
