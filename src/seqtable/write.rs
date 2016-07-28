@@ -93,7 +93,7 @@ impl<W: Write + Seek> SeqTableWriter<W> {
             info: self.infotable.last_mut().unwrap(),
             block: Vec::new(),
             compressor: Compress::new(Compression::Best, false),
-            output: vec![0u8; self.block_length as usize * size_of::<(u16,u16)>()],
+            output: vec![0u8; self.block_length as usize * size_of::<(u32,u32)>()],
             block_length: self.block_length,
             max_buffer_size: &mut self.max_buffer_size,
             counts: &mut self.counts,
