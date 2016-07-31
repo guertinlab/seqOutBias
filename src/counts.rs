@@ -236,7 +236,7 @@ fn region_counts<R: ioRead + Seek>(table: &mut SeqTable<R>, bedregions: &str) ->
     
     // allocate counts table
     let mut counts: Vec<(u64, u64, u64, u64)> = Vec::new();
-    let nmer_count = 4u64.pow(table.params.cut_length as u32) + 1;
+    let nmer_count = table.params.nmer_count();
     
     for _ in 0..nmer_count {
         counts.push((0,0,0,0));

@@ -14,6 +14,9 @@ fn dump_header<R: Read + Seek>(table: &SeqTable<R>) {
     println!("# plus-offset:  {}", params.plus_offset);
     println!("# minus-offset: {}", params.minus_offset);
     println!("# read-size:    {}", params.read_length);
+    if let Some(ref mask) = params.mask {
+        println!("# cutmask: {}", mask.iter().map(|&flag| if flag { 'N' } else { 'X' } ).collect::<String>());
+    };
 }
 
 /// range can take the form: <chrom>:<start>-<end> or just <chrom>

@@ -30,6 +30,7 @@ pub struct SeqInfo {
 }
 
 pub struct SeqTableWriter<W: Write + Seek> {
+    headoffset: u64,
     tailoffset: u64,
     writer: W,
     infotable: Vec<SeqInfo>,
@@ -46,12 +47,24 @@ impl<W: Write + Seek> SeqTableWriter<W> {
         try!(writer.write_u8(super::TBL_VERSION));
         // write parameters to file
         try!(writer.write_u8(params.cut_length));
+        try!(writer.write_u8(params.unmasked_count));
         // offsets are not required, but are stored anyway for reference
         try!(writer.write_u8(params.plus_offset));  
         try!(writer.write_u8(params.minus_offset));
         try!(writer.write_u16::<LittleEndian>(params.read_length));
-        try!(writer.write_u32::<LittleEndian>(blen));
-        
+        // write mask if present
+        if let Some(ref mask) = params.mask {
+            for &flag in mask.iter() {
+                if flag {
+                    try!(writer.write_u8(1));
+                } else {
+                    try!(writer.write_u8(0));
+                }
+            }
+        }
+
+        // write block size
+        try!(writer.write_u32::<LittleEndian>(blen));        
         // write temporary blank value to be filled in later
         // with offset of sequence table at end of file
         try!(writer.write_u64::<LittleEndian>(0));
@@ -61,11 +74,12 @@ impl<W: Write + Seek> SeqTableWriter<W> {
         try!(writer.write_u64::<LittleEndian>(0));
         
         //
-        let offset = size_of::<u32>() + 3 * size_of::<u64>() + 4 * size_of::<u8>() + size_of::<u16>();
+        let hoffset = 5 * size_of::<u8>() + size_of::<u16>() + if params.mask.is_some() { params.cut_length as usize * size_of::<u8>() } else { 0 } + size_of::<u32>();
+        let toffset = hoffset + 3 * size_of::<u64>();
         
         // allocate counts table
         let mut counts: Vec<(u64, u64, u64, u64)> = Vec::new();
-        let nmer_count = 4u64.pow(params.cut_length as u32) + 1;
+        let nmer_count = params.nmer_count();
         
         for _ in 0..nmer_count {
             counts.push((0,0,0,0));
@@ -73,7 +87,8 @@ impl<W: Write + Seek> SeqTableWriter<W> {
         
         //
         Ok(SeqTableWriter{ 
-            tailoffset: offset as u64, 
+            headoffset: hoffset as u64,
+            tailoffset: toffset as u64, 
             writer: writer, 
             infotable: Vec::new(),
             block_length: blen,
@@ -116,8 +131,7 @@ impl<W: Write + Seek> Drop for SeqTableWriter<W> {
         let counts_offset = self.tailoffset + encoded_size(&self.infotable);
         
         // seek to start & fill info table offset and max decoder size in header
-        let offset = size_of::<u32>() + 4 * size_of::<u8>() + size_of::<u16>();
-        self.writer.seek(SeekFrom::Start(offset as u64)).unwrap();
+        self.writer.seek(SeekFrom::Start(self.headoffset as u64)).unwrap();
         self.writer.write_u64::<LittleEndian>(self.tailoffset as u64).unwrap();
         self.writer.write_u64::<LittleEndian>(self.max_buffer_size).unwrap();
         self.writer.write_u64::<LittleEndian>(counts_offset).unwrap();

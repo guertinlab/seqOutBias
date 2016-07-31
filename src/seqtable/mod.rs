@@ -58,6 +58,10 @@ impl SeqTableParams {
         },
     }
   }
+
+  pub fn nmer_count(&self) -> u32 {
+    4u32.pow(self.unmasked_count as u32) + 1
+  }
 }
 
 pub trait SeqStore {
