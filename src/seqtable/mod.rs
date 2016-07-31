@@ -6,7 +6,7 @@ use tallyread::{UnMap,UnMapPosition};
 use std::io::BufRead;
 use std::cmp;
 
-const TBL_VERSION : u8 = 3u8;
+const TBL_VERSION : u8 = 4u8;
 
 #[derive(Clone, Debug)]
 pub struct SeqTableParams {
@@ -15,9 +15,49 @@ pub struct SeqTableParams {
 	pub minus_offset: u8,
 	pub read_length: u16,
   // masked n-mers
-  pub mask: Option<String>,
+  pub mask: Option<Vec<bool>>,
   pub unmasked_count: u8,
+}
 
+impl SeqTableParams {
+  pub fn new(mut cut_length: u8, mut plus_offset: u8, mut minus_offset: u8, read_length: u16, mask: &Option<String>) -> Self {
+    match *mask {
+      Some(ref maskstr) => {
+        let uc_mask = maskstr.to_uppercase();
+        if let Some(idx) = uc_mask.find('C') {
+          cut_length = uc_mask.len() as u8 - 1;
+          plus_offset = idx as u8;
+          minus_offset = cut_length - (idx as u8);
+        } else {
+          cut_length = uc_mask.len() as u8;
+        }
+        println!("# cut-size: {}", cut_length);
+        println!("# plus-offset: {}", plus_offset);
+        println!("# minus-offset: {}", minus_offset);
+
+        let bmask: Vec<bool> = uc_mask.chars().filter(|c| *c != 'C').map(|c| c == 'N').collect();
+        let bcount = bmask.iter().fold(0u8, |acc, &x| if x { acc + 1 } else { acc });
+
+        SeqTableParams {
+          cut_length: cut_length,
+          plus_offset: plus_offset,
+          minus_offset: minus_offset,
+          read_length: read_length,
+          mask: if bcount < bmask.len() as u8 { Some(bmask) } else { None },
+          unmasked_count:  bcount,
+        }
+      },
+      None =>
+        SeqTableParams {
+          cut_length: cut_length,
+          plus_offset: plus_offset,
+          minus_offset: minus_offset,
+          read_length: read_length,
+          mask: None,
+          unmasked_count: cut_length,
+        },
+    }
+  }
 }
 
 pub trait SeqStore {
@@ -54,7 +94,7 @@ pub struct SeqBuffer<'a, S: SeqStore, R: 'a + BufRead> {
 impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
     
     /// Create new sequence buffer which will store values into the supplied SeqStore instance
-    pub fn new(mut store: S, params: SeqTableParams, unmap: &'a UnMap<R>) -> SeqBuffer<'a, S,R> {
+    pub fn new(mut store: S, params: &SeqTableParams, unmap: &'a UnMap<R>) -> SeqBuffer<'a, S,R> {
         // Skipping
         //
         // If the aligned read position for each strand is before the start of the sequence, then

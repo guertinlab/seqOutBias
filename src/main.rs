@@ -137,6 +137,32 @@ fn file_exists(filename: &str) -> bool {
 	}
 }
 
+fn validate_mask(mask: &str) {
+    let mut c_count = 0;
+    let mut n_count = 0;
+    for c in mask.chars() {
+        if c == 'C' || c == 'c' {
+            c_count += 1;
+        } else if c == 'x' || c == 'X' {
+            // ok, nothing to do
+        } else if c == 'n' || c == 'N' {
+            n_count += 1;
+        } else {
+            println!("Invalid cutmask, unknown character: {}", c);
+            exit(1);
+        }
+    }
+
+    if n_count == 0 {
+        println!("Invalid cutmask, must have at least one unmasked (N) position.");
+        exit(1);
+    }
+    if c_count > 1 {
+        println!("Invalid cutmask, can only have one cut position (C).");
+        exit(1);
+    }
+}
+
 fn main() {
     // Parse command line arguments
     let args: Args = Docopt::new(USAGE)
@@ -223,14 +249,20 @@ fn main() {
     
     // phase 2 - seqtable
     let seqtable_file = if run_seqtable {
-        let suffix = format!("_{}.{}.{}.{}.tbl", args.flag_read_size, args.flag_cut_size, args.flag_plus_offset, args.flag_minus_offset);
-        let outfile = stem_filename(&args.arg_fasta_file, &suffix, args.flag_out);
+
+        if let Some(ref mask) = args.flag_cutmask {
+            validate_mask(mask);
+        }
+
+        let seq_params = seqtable::SeqTableParams::new(
+            args.flag_cut_size,
+            args.flag_plus_offset,
+            args.flag_minus_offset,
+            args.flag_read_size,
+            &args.flag_cutmask);
         
-        let seq_params = seqtable::SeqTableParams {
-            cut_length: args.flag_cut_size,
-            plus_offset: args.flag_plus_offset,
-            minus_offset: args.flag_minus_offset,
-            read_length: args.flag_read_size };
+        let suffix = format!("_{}.{}.{}.{}.tbl", seq_params.read_length, seq_params.cut_length, seq_params.plus_offset, seq_params.minus_offset);
+        let outfile = stem_filename(&args.arg_fasta_file, &suffix, args.flag_out);
         
         if file_exists(&outfile) {
             let file = File::open(&outfile).ok().expect("read file");

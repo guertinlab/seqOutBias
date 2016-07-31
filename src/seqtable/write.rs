@@ -39,7 +39,7 @@ pub struct SeqTableWriter<W: Write + Seek> {
 }
 
 impl<W: Write + Seek> SeqTableWriter<W> {
-    pub fn new(mut writer: W, params: SeqTableParams, block_length: u32) -> Result<SeqTableWriter<W>> {
+    pub fn new(mut writer: W, params: &SeqTableParams, block_length: u32) -> Result<SeqTableWriter<W>> {
         let blen = block_length;
         
         // write version number

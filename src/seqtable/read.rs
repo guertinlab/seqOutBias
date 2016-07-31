@@ -41,12 +41,16 @@ impl<R: Read + Seek> SeqTable<R> {
             return Err(Error::new(ErrorKind::InvalidData, format!("Incompatible file version {}, expected {}.", version, super::TBL_VERSION)));
         }
         // load parameters
-        let params = SeqTableParams {
+        let mut params = SeqTableParams {
             cut_length: try!(reader.read_u8()),
             plus_offset: try!(reader.read_u8()),
             minus_offset: try!(reader.read_u8()),
             read_length: try!(reader.read_u16::<LittleEndian>()),
+            mask: None,
+            unmasked_count: 0,
         };
+        params.unmasked_count = params.cut_length;
+         
         // load block size
         let blen = try!(reader.read_u32::<LittleEndian>());
         // load info table offset

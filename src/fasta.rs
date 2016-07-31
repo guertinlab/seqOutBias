@@ -83,7 +83,7 @@ macro_rules! store_base {
 }
 
 fn process_sequence<R1: Read, R2: BufRead>(seqwrt: SequenceWriter<File>, iter: &mut Bytes<R1>, enzctxt: &mut EnzContext, params: &SeqTableParams, unmap: &UnMap<R2>) -> State {
-    let mut buf = SeqBuffer::new(seqwrt, *params, unmap);
+    let mut buf = SeqBuffer::new(seqwrt, params, unmap);
     let mut seqpos = 0u32;
     
     while let Some(Ok(byte)) = iter.next() {
@@ -117,7 +117,7 @@ pub fn generate_seqtable<R1: Read, R2: BufRead>(fasta: R1, tallymer: R2, params:
     let mut chrom: Vec<u8> = Vec::new();
     
     let f_out = File::create(outfile).ok().expect("create file");
-    let mut output = SeqTableWriter::new(f_out, params, 3200000).ok().expect("create store");
+    let mut output = SeqTableWriter::new(f_out, &params, 3200000).ok().expect("create store");
     
     while let Some(Ok(byte)) = iter.next() {
         match state {
