@@ -15,36 +15,52 @@ use std::io::Result;
 use std::io::ErrorKind;
 use std::io::Error as ioError;
 use std::error::Error;
-use std::ops::Range;
 use std::process::exit;
+use std::ops::Range;
 use std::iter::Peekable;
-use seqtable::{SeqTable,SequenceInfo};
+use seqtable::{SeqTableParams,SeqTable,SequenceInfo};
 use std::cmp::Ordering;
 use filter::{RecordCheck, PairedChecker, SingleChecker};
 
-struct KeyIter {
+struct KeyIter<'a> {
     kmer: Vec<u8>,
     alph: [char; 4],
+    mask: Option<&'a Vec<bool>>,
 }
 
-impl KeyIter {
-    fn new(k: u8) -> KeyIter {
+impl<'a> KeyIter<'a> {
+    fn new(k: u8, mask: Option<&'a Vec<bool>>) -> KeyIter {
         let mut kmer = vec![1; k as usize];
         kmer[(k - 1) as usize] = 0;
-        KeyIter { kmer: kmer, alph: ['A','C','G','T'] }
+        KeyIter { kmer: kmer, alph: ['A','C','G','T'], mask: mask }
     }
     
     fn key(&self) -> String {
         let mut key = String::new();
         
-        for b in &self.kmer {
-            key.push(self.alph[(b - 1) as usize]);
+        match self.mask {
+            Some(flags) => {
+                let kiter = &mut self.kmer.iter();
+                for &flag in flags {
+                    if flag {
+                        let b = kiter.next().unwrap();
+                        key.push(self.alph[(b - 1) as usize]);
+                    } else {
+                        key.push('N');
+                    }
+                } 
+            },
+            None => {
+                for b in &self.kmer {
+                    key.push(self.alph[(b - 1) as usize]);
+                }
+            }
         }
         key
     }
 }
 
-impl Iterator for KeyIter {
+impl<'a> Iterator for KeyIter<'a> {
     type Item = String;
     
     fn next(&mut self) -> Option<String> {
@@ -349,11 +365,9 @@ pub fn tabulate(seqfile: &str, bamfile: Option<&Vec<String>>, minqual: u8, regio
     counts
 }
 
-pub fn print_counts(counts: &Vec<(u64, u64, u64, u64)>, with_bam: bool) {
-    let k = (((counts.len() - 1) as f32).log2() / 2.0) as u8;
-    let mut keys = KeyIter::new(k);
+pub fn print_counts(counts: &Vec<(u64, u64, u64, u64)>, with_bam: bool, params: &SeqTableParams) {
+    let mut keys = KeyIter::new(params.unmasked_count, params.mask.as_ref());
     
-    // TODO: tmp: output table to file
     if with_bam {
         for i in 1..counts.len() {
             let (plus, minus, bam_plus, bam_minus) = counts[i];

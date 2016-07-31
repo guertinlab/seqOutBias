@@ -3,7 +3,9 @@
 //!
 use std::collections::VecDeque;
 use tallyread::{UnMap,UnMapPosition};
+use std::process::exit;
 use std::io::BufRead;
+use std::fs::File;
 use std::cmp;
 
 const TBL_VERSION : u8 = 4u8;
@@ -57,6 +59,18 @@ impl SeqTableParams {
           unmasked_count: cut_length,
         },
     }
+  }
+
+  pub fn from_file(filename: &str) -> Self {
+    let file = File::open(filename).ok().expect("read file");
+    let table = match SeqTable::open(file) {
+        Ok(value) => value,
+        Err(e) => {
+            println!("Error:tabulate: {}", e.to_string()); 
+            exit(1); 
+        },
+    };
+    table.params().clone()
   }
 
   pub fn nmer_count(&self) -> u32 {

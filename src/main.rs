@@ -197,7 +197,8 @@ fn main() {
     if args.cmd_table {
         let has_bam = args.arg_bam_file.is_some();
         let counts = counts::tabulate(&args.arg_seqtbl_file, args.arg_bam_file.as_ref(), args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired, args.flag_exact_length);
-        counts::print_counts(&counts, has_bam);
+        let params = seqtable::SeqTableParams::from_file(&args.arg_seqtbl_file);
+        counts::print_counts(&counts, has_bam, &params);
         return;
     }
     
