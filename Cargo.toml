@@ -1,6 +1,6 @@
 [package]
-name = "enzcut"
-version = "0.9.5"
+name = "seqOutBias"
+version = "0.9.6"
 authors = ["André Martins <alm253@cornell.edu>"]
 
 [dependencies]

@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 extern crate rustc_serialize;
 extern crate docopt;
 extern crate num;
@@ -30,14 +32,14 @@ const USAGE: &'static str = "
 Cut-site frequencies
 
 Usage:
-  enzcut tallymer <fasta-file> <read-size> [--parts=<n>]
-  enzcut seqtable <fasta-file> [options]
-  enzcut dump <seqtbl-file> [<seqrange>]
-  enzcut table <seqtbl-file> [<bam-file>...] [--qual=<q>] [--regions=<bedfile>] [--pdist=<min:max>] [--only-paired] [--exact-length]
-  enzcut scale <seqtbl-file> <bam-file>... [options]
-  enzcut <fasta-file> <bam-file>... [options]
-  enzcut (-h | --help)
-  enzcut --version
+  seqOutBias tallymer <fasta-file> <read-size> [--parts=<n>]
+  seqOutBias seqtable <fasta-file> [options]
+  seqOutBias dump <seqtbl-file> [<seqrange>]
+  seqOutBias table <seqtbl-file> [<bam-file>...] [--qual=<q>] [--regions=<bedfile>] [--pdist=<min:max>] [--only-paired] [--exact-length]
+  seqOutBias scale <seqtbl-file> <bam-file>... [options]
+  seqOutBias <fasta-file> <bam-file>... [options]
+  seqOutBias (-h | --help)
+  seqOutBias --version
 
 Options:
   -h --help             Show this screen.
