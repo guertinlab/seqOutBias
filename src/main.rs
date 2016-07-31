@@ -281,7 +281,7 @@ fn main() {
                 exit(1);
             }
         } else {
-            fasta::process_fasta(&args.arg_fasta_file, &tally_path.unwrap(), seq_params, &outfile);
+            fasta::process_fasta(&args.arg_fasta_file, &tally_path.unwrap(), &seq_params, &outfile);
             println!("# seqtable produced {}", &outfile);
             outfile
         }

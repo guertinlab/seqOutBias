@@ -12,7 +12,12 @@ use flate2::read::GzDecoder;
 use std::process::exit;
 
 /// Holds information on the current enzyme cut region
-struct EnzContext {
+trait EnzContext {
+    fn sequence_change(&mut self);
+    fn add_base(&mut self, base: u8) -> Option<u64>;
+}
+
+struct EnzContextSimple {
     cut_dna_value: u64,
     cut_size: usize,
     
@@ -21,9 +26,15 @@ struct EnzContext {
     buf: VecDeque<u8>,
 }
 
-impl EnzContext {
+impl EnzContextSimple {
     // private API
     fn update_cut_dna_value(&mut self, value: u8) -> bool {
+        if value == 4 {
+            self.buf.clear();
+            self.cut_dna_value = 0;
+            return false;
+        }
+
         if self.buf.len() == self.cut_size {
             if let Some(head) = self.buf.pop_front() {
                 self.cut_dna_value -= self.radix_power * (head as u64);
@@ -37,33 +48,82 @@ impl EnzContext {
     }
         
     // public API
-    pub fn new(cut_size: u8) -> EnzContext {
-        EnzContext {
+    pub fn new(cut_size: u8) -> EnzContextSimple {
+        EnzContextSimple {
             cut_dna_value: 0u64,
             cut_size: cut_size as usize,
             radix_power: 4u64.pow((cut_size - 1) as u32),
             buf: VecDeque::new(),
         }
     }
-    
-    pub fn sequence_change(&mut self) {
+}
+
+impl EnzContext for EnzContextSimple {
+    fn sequence_change(&mut self) {
         self.buf.clear();
         self.cut_dna_value = 0;
     }
     
-    pub fn add_base(&mut self, base: u8) -> Option<u64> {
+    fn add_base(&mut self, base: u8) -> Option<u64> {
         if self.update_cut_dna_value(base) {
             Some(self.cut_dna_value)
         } else {
             None
         }
     }
-    
-    pub fn add_n(&mut self) {
-        self.cut_dna_value = 0;
-        self.buf.clear();
+}
+
+// Masked version
+struct EnzContextMasked {
+    cut_length: usize,
+    unmasked_count: u32,
+    buf: VecDeque<u8>,
+    mask: Vec<bool>,
+}
+
+impl EnzContextMasked {
+    pub fn new(params: &SeqTableParams) -> EnzContextMasked {
+        EnzContextMasked {
+            cut_length: params.cut_length as usize,
+            unmasked_count: params.unmasked_count as u32,
+            buf: VecDeque::with_capacity(params.unmasked_count as usize),
+            mask: params.mask.as_ref().unwrap().clone(),
+        }
+    }
+
+    fn nmer_index(&self) -> Option<u64> {
+        let mut idx = 0;
+        let mut mult = 4u64.pow(self.unmasked_count - 1);
+
+        for (base, flag) in self.buf.iter().zip(&self.mask) {
+            if *flag {
+                if *base == 4 { return None; } // N in a non-masked position
+
+                idx = idx + *base as u64 * mult;
+                mult = mult / 4;
+            }
+        }
+        Some(idx)
     }
 }
+
+impl EnzContext for EnzContextMasked {
+    fn sequence_change(&mut self) {
+        self.buf.clear();
+    }
+    
+    fn add_base(&mut self, base: u8) -> Option<u64> {
+        if self.buf.len() == self.cut_length { self.buf.pop_front(); }
+        self.buf.push_back(base);
+        if self.buf.len() == self.cut_length {
+            self.nmer_index()
+        } else {
+            None
+        }
+    }
+}
+
+
 
 // FASTA State machine
 #[derive(PartialEq)]
@@ -82,7 +142,7 @@ macro_rules! store_base {
     }};
 }
 
-fn process_sequence<R1: Read, R2: BufRead>(seqwrt: SequenceWriter<File>, iter: &mut Bytes<R1>, enzctxt: &mut EnzContext, params: &SeqTableParams, unmap: &UnMap<R2>) -> State {
+fn process_sequence<R1: Read, R2: BufRead, T:EnzContext>(seqwrt: SequenceWriter<File>, iter: &mut Bytes<R1>, enzctxt: &mut T, params: &SeqTableParams, unmap: &UnMap<R2>) -> State {
     let mut buf = SeqBuffer::new(seqwrt, params, unmap);
     let mut seqpos = 0u32;
     
@@ -96,11 +156,7 @@ fn process_sequence<R1: Read, R2: BufRead>(seqwrt: SequenceWriter<File>, iter: &
             b'c' | b'C' => { store_base!(enzctxt, buf, 1); seqpos += 1; },
             b'g' | b'G' => { store_base!(enzctxt, buf, 2); seqpos += 1; },
             b't' | b'T' => { store_base!(enzctxt, buf, 3); seqpos += 1; },
-            b'n' | b'N' => {
-                enzctxt.add_n();
-                buf.push(0);
-                seqpos += 1;
-            },
+            b'n' | b'N' => { store_base!(enzctxt, buf, 4); seqpos += 1; },
             _ => {},
         }
     }
@@ -109,15 +165,14 @@ fn process_sequence<R1: Read, R2: BufRead>(seqwrt: SequenceWriter<File>, iter: &
 }
 
 /// Read FASTA file and produce SeqTable file
-pub fn generate_seqtable<R1: Read, R2: BufRead>(fasta: R1, tallymer: R2, params: SeqTableParams, outfile: &str) {
+fn generate_seqtable_ctxt<R1: Read, R2: BufRead, T: EnzContext>(fasta: R1, tallymer: R2, params: &SeqTableParams, mut enzctxt: T, outfile: &str) {
 	let mut unmap = UnMap::open(tallymer).ok().expect("Load mappability information");
     let mut iter = fasta.bytes();
     let mut state = State::HeaderStart;
-    let mut enzctxt = EnzContext::new(params.cut_length);
     let mut chrom: Vec<u8> = Vec::new();
     
     let f_out = File::create(outfile).ok().expect("create file");
-    let mut output = SeqTableWriter::new(f_out, &params, 3200000).ok().expect("create store");
+    let mut output = SeqTableWriter::new(f_out, params, 3200000).ok().expect("create store");
     
     while let Some(Ok(byte)) = iter.next() {
         match state {
@@ -135,7 +190,7 @@ pub fn generate_seqtable<R1: Read, R2: BufRead>(fasta: R1, tallymer: R2, params:
                 } else if byte == b'\n' {
                     let seqwrt = output.create_sequence(String::from_utf8_lossy(&chrom).into_owned());
                     println!("# chrom: {:?}", String::from_utf8_lossy(&chrom)); 
-                    state = process_sequence(seqwrt, &mut iter, &mut enzctxt, &params, &mut unmap);
+                    state = process_sequence(seqwrt, &mut iter, &mut enzctxt, params, &mut unmap);
                     
                     // after processing sequence
                     if state == State::HeaderChrom {
@@ -149,7 +204,7 @@ pub fn generate_seqtable<R1: Read, R2: BufRead>(fasta: R1, tallymer: R2, params:
             State::Header => if byte == b'\n' {
                     let seqwrt = output.create_sequence(String::from_utf8_lossy(&chrom).into_owned());
                     println!("# chrom: {:?}", String::from_utf8_lossy(&chrom)); 
-                    state = process_sequence(seqwrt, &mut iter, &mut enzctxt, &params, &mut unmap);
+                    state = process_sequence(seqwrt, &mut iter, &mut enzctxt, params, &mut unmap);
                     
                     // after processing sequence
                     if state == State::HeaderChrom {
@@ -163,7 +218,14 @@ pub fn generate_seqtable<R1: Read, R2: BufRead>(fasta: R1, tallymer: R2, params:
     }
 }
 
-pub fn process_fasta(fasta_path: &str, tallymer_path: &OsStr, params: SeqTableParams, outfile: &str) {
+pub fn generate_seqtable<R1: Read, R2: BufRead>(fasta: R1, tallymer: R2, params: &SeqTableParams, outfile: &str) {
+    match params.mask {
+        Some(_) => generate_seqtable_ctxt(fasta, tallymer, params, EnzContextMasked::new(params), outfile),
+        None => generate_seqtable_ctxt(fasta, tallymer, params, EnzContextSimple::new(params.cut_length), outfile),
+    }
+}
+
+pub fn process_fasta(fasta_path: &str, tallymer_path: &OsStr, params: &SeqTableParams, outfile: &str) {
     let f_fasta = File::open(fasta_path).ok().expect("Can't open FASTA file.");
     let f_tallymer = File::open(tallymer_path).ok().expect("Can't open Tallymer file.");
     
