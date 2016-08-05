@@ -10,12 +10,12 @@ use super::read::SequenceInfo;
 fn dump_header<R: Read + Seek>(table: &SeqTable<R>) {
     let params = table.params();
         
-    println!("# cut-size:     {}", params.cut_length);
+    println!("# kmer-size:    {}", params.kmer_length);
     println!("# plus-offset:  {}", params.plus_offset);
     println!("# minus-offset: {}", params.minus_offset);
     println!("# read-size:    {}", params.read_length);
     if let Some(ref mask) = params.mask {
-        println!("# cutmask: {}", mask.iter().map(|&flag| if flag { 'N' } else { 'X' } ).collect::<String>());
+        println!("# kmer-mask: {}", mask.iter().map(|&flag| if flag { 'N' } else { 'X' } ).collect::<String>());
     };
 }
 

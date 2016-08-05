@@ -12,7 +12,7 @@ const TBL_VERSION : u8 = 4u8;
 
 #[derive(Clone, Debug)]
 pub struct SeqTableParams {
-	pub cut_length: u8,
+	pub kmer_length: u8,
 	pub plus_offset: u8,
 	pub minus_offset: u8,
 	pub read_length: u16,
@@ -22,18 +22,18 @@ pub struct SeqTableParams {
 }
 
 impl SeqTableParams {
-  pub fn new(mut cut_length: u8, mut plus_offset: u8, mut minus_offset: u8, read_length: u16, mask: &Option<String>) -> Self {
+  pub fn new(mut kmer_length: u8, mut plus_offset: u8, mut minus_offset: u8, read_length: u16, mask: &Option<String>) -> Self {
     match *mask {
       Some(ref maskstr) => {
         let uc_mask = maskstr.to_uppercase();
         if let Some(idx) = uc_mask.find('C') {
-          cut_length = uc_mask.len() as u8 - 1;
+          kmer_length = uc_mask.len() as u8 - 1;
           plus_offset = idx as u8;
-          minus_offset = cut_length - (idx as u8);
+          minus_offset = kmer_length - (idx as u8);
         } else {
-          cut_length = uc_mask.len() as u8;
+          kmer_length = uc_mask.len() as u8;
         }
-        println!("# cut-size: {}", cut_length);
+        println!("# kmer-size: {}", kmer_length);
         println!("# plus-offset: {}", plus_offset);
         println!("# minus-offset: {}", minus_offset);
 
@@ -41,7 +41,7 @@ impl SeqTableParams {
         let bcount = bmask.iter().fold(0u8, |acc, &x| if x { acc + 1 } else { acc });
 
         SeqTableParams {
-          cut_length: cut_length,
+          kmer_length: kmer_length,
           plus_offset: plus_offset,
           minus_offset: minus_offset,
           read_length: read_length,
@@ -51,12 +51,12 @@ impl SeqTableParams {
       },
       None =>
         SeqTableParams {
-          cut_length: cut_length,
+          kmer_length: kmer_length,
           plus_offset: plus_offset,
           minus_offset: minus_offset,
           read_length: read_length,
           mask: None,
-          unmasked_count: cut_length,
+          unmasked_count: kmer_length,
         },
     }
   }
@@ -118,7 +118,7 @@ impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
         // If the aligned read position for each strand is before the start of the sequence, then
         // those values are not useful, i.e., they don't contribute to the output. So they should
         // be skipped, instead of stored in the value queues. 
-        let plus_start = params.cut_length as i16 - 1 - params.plus_offset as i16;
+        let plus_start = params.kmer_length as i16 - 1 - params.plus_offset as i16;
         let minus_start = params.read_length as i16 - 1 + params.minus_offset as i16;
         let common_skip = if plus_start > 0 { // minus_start is always > 0 (assuming unsigned offsets)
           cmp::min(plus_start, minus_start)

@@ -189,7 +189,7 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
     let seqinfos = table.sequences();
     let rlen = table.params.read_length as usize;
     let minus_shift = if shift {
-        let res = (table.params.plus_offset as i16 - (table.params.cut_length as i16 - table.params.minus_offset as i16 - 1i16)) as i32;
+        let res = (table.params.plus_offset as i16 - (table.params.kmer_length as i16 - table.params.minus_offset as i16 - 1i16)) as i32;
         println!("# minus strand shift = {} bp", res);
         res
     } else {

@@ -44,11 +44,11 @@ Usage:
 Options:
   -h --help             Show this screen.
   --version             Show version.
-  --cut-size=<n>        Cut-site size [default: 4].
+  --kmer-size=<n>       Kmer size [default: 4].
   --tallymer=<file>     Unmappable positions file produced by tallymer (seq, pos).
   --plus-offset=<p>     Cut-site offset on plus strand, eg. p=2 AA[A]A [default: 2].
   --minus-offset=<m>    Cut-site offset on minus strand, eg. Eg, m=2 A[A]AA [default: 2].
-  --cutmask=<str>       String representing the cut-site, eg. NNXXNNCXXXXNNXXNN.
+  --kmer-mask=<str>     String indicating relevant kmer positions and cut-site, eg. NNXXNNCXXXXNNXXNN.
   --read-size=<r>       Read length [default: 36].
   --parts=<n>           Split suffix tree generation into n parts [default: 4].
   --qual=<q>            Minimum read quality [default: 0].
@@ -73,11 +73,11 @@ struct Args {
     arg_seqtbl_file: String,
     arg_seqrange: Option<String>,
     arg_bam_file: Option<Vec<String>>,
-    flag_cut_size: u8,
+    flag_kmer_size: u8,
     flag_tallymer: Option<String>,
     flag_plus_offset: u8,
     flag_minus_offset: u8,
-    flag_cutmask: Option<String>,
+    flag_kmer_mask: Option<String>,
     flag_version: bool,
     flag_read_size: u16,
     flag_parts: u8,
@@ -150,17 +150,17 @@ fn validate_mask(mask: &str) {
         } else if c == 'n' || c == 'N' {
             n_count += 1;
         } else {
-            println!("Invalid cutmask, unknown character: {}", c);
+            println!("Invalid kmer-mask, unknown character: {}", c);
             exit(1);
         }
     }
 
     if n_count == 0 {
-        println!("Invalid cutmask, must have at least one unmasked (N) position.");
+        println!("Invalid kmer-mask, must have at least one unmasked (N) position.");
         exit(1);
     }
     if c_count > 1 {
-        println!("Invalid cutmask, can only have one cut position (C).");
+        println!("Invalid kmer-mask, can only have one cut position (C).");
         exit(1);
     }
 }
@@ -253,18 +253,18 @@ fn main() {
     // phase 2 - seqtable
     let seqtable_file = if run_seqtable {
 
-        if let Some(ref mask) = args.flag_cutmask {
+        if let Some(ref mask) = args.flag_kmer_mask {
             validate_mask(mask);
         }
 
         let seq_params = seqtable::SeqTableParams::new(
-            args.flag_cut_size,
+            args.flag_kmer_size,
             args.flag_plus_offset,
             args.flag_minus_offset,
             args.flag_read_size,
-            &args.flag_cutmask);
+            &args.flag_kmer_mask);
         
-        let suffix = format!("_{}.{}.{}.{}.tbl", seq_params.read_length, seq_params.cut_length, seq_params.plus_offset, seq_params.minus_offset);
+        let suffix = format!("_{}.{}.{}.{}.tbl", seq_params.read_length, seq_params.kmer_length, seq_params.plus_offset, seq_params.minus_offset);
         let outfile = stem_filename(&args.arg_fasta_file, &suffix, args.flag_out);
         
         if file_exists(&outfile) {

@@ -46,7 +46,7 @@ impl<W: Write + Seek> SeqTableWriter<W> {
         // write version number
         try!(writer.write_u8(super::TBL_VERSION));
         // write parameters to file
-        try!(writer.write_u8(params.cut_length));
+        try!(writer.write_u8(params.kmer_length));
         try!(writer.write_u8(params.unmasked_count));
         // offsets are not required, but are stored anyway for reference
         try!(writer.write_u8(params.plus_offset));  
@@ -74,7 +74,7 @@ impl<W: Write + Seek> SeqTableWriter<W> {
         try!(writer.write_u64::<LittleEndian>(0));
         
         //
-        let hoffset = 5 * size_of::<u8>() + size_of::<u16>() + if params.mask.is_some() { params.cut_length as usize * size_of::<u8>() } else { 0 } + size_of::<u32>();
+        let hoffset = 5 * size_of::<u8>() + size_of::<u16>() + if params.mask.is_some() { params.kmer_length as usize * size_of::<u8>() } else { 0 } + size_of::<u32>();
         let toffset = hoffset + 3 * size_of::<u64>();
         
         // allocate counts table

@@ -19,7 +19,7 @@ trait EnzContext {
 
 struct EnzContextSimple {
     cut_dna_value: u64,
-    cut_size: usize,
+    kmer_size: usize,
     
     // auxiliary data
     radix_power: u64,
@@ -35,7 +35,7 @@ impl EnzContextSimple {
             return false;
         }
 
-        if self.buf.len() == self.cut_size {
+        if self.buf.len() == self.kmer_size {
             if let Some(head) = self.buf.pop_front() {
                 self.cut_dna_value -= self.radix_power * (head as u64);
             }
@@ -44,15 +44,15 @@ impl EnzContextSimple {
         self.cut_dna_value *= 4;
         self.cut_dna_value += value as u64;
     
-        return self.buf.len() == self.cut_size;
+        return self.buf.len() == self.kmer_size;
     }
         
     // public API
-    pub fn new(cut_size: u8) -> EnzContextSimple {
+    pub fn new(kmer_size: u8) -> EnzContextSimple {
         EnzContextSimple {
             cut_dna_value: 0u64,
-            cut_size: cut_size as usize,
-            radix_power: 4u64.pow((cut_size - 1) as u32),
+            kmer_size: kmer_size as usize,
+            radix_power: 4u64.pow((kmer_size - 1) as u32),
             buf: VecDeque::new(),
         }
     }
@@ -75,7 +75,7 @@ impl EnzContext for EnzContextSimple {
 
 // Masked version
 struct EnzContextMasked {
-    cut_length: usize,
+    kmer_length: usize,
     unmasked_count: u32,
     buf: VecDeque<u8>,
     mask: Vec<bool>,
@@ -84,7 +84,7 @@ struct EnzContextMasked {
 impl EnzContextMasked {
     pub fn new(params: &SeqTableParams) -> EnzContextMasked {
         EnzContextMasked {
-            cut_length: params.cut_length as usize,
+            kmer_length: params.kmer_length as usize,
             unmasked_count: params.unmasked_count as u32,
             buf: VecDeque::with_capacity(params.unmasked_count as usize),
             mask: params.mask.as_ref().unwrap().clone(),
@@ -113,9 +113,9 @@ impl EnzContext for EnzContextMasked {
     }
     
     fn add_base(&mut self, base: u8) -> Option<u64> {
-        if self.buf.len() == self.cut_length { self.buf.pop_front(); }
+        if self.buf.len() == self.kmer_length { self.buf.pop_front(); }
         self.buf.push_back(base);
-        if self.buf.len() == self.cut_length {
+        if self.buf.len() == self.kmer_length {
             self.nmer_index()
         } else {
             None
@@ -221,7 +221,7 @@ fn generate_seqtable_ctxt<R1: Read, R2: BufRead, T: EnzContext>(fasta: R1, tally
 pub fn generate_seqtable<R1: Read, R2: BufRead>(fasta: R1, tallymer: R2, params: &SeqTableParams, outfile: &str) {
     match params.mask {
         Some(_) => generate_seqtable_ctxt(fasta, tallymer, params, EnzContextMasked::new(params), outfile),
-        None => generate_seqtable_ctxt(fasta, tallymer, params, EnzContextSimple::new(params.cut_length), outfile),
+        None => generate_seqtable_ctxt(fasta, tallymer, params, EnzContextSimple::new(params.kmer_length), outfile),
     }
 }
 

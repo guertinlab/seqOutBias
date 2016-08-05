@@ -59,7 +59,7 @@ impl<R: Read + Seek> SeqTable<R> {
         };
 
         let params = SeqTableParams {
-            cut_length: cl,
+            kmer_length: cl,
             plus_offset: po,
             minus_offset: mo,
             read_length: rl,
@@ -146,7 +146,7 @@ impl<R: Read + Seek> SeqTable<R> {
     
     pub fn equivalent(&self, _: &str, params: &SeqTableParams) -> bool {
         self.params.read_length == params.read_length &&
-        self.params.cut_length == params.cut_length &&
+        self.params.kmer_length == params.kmer_length &&
         self.params.plus_offset == params.plus_offset &&
         self.params.minus_offset == params.minus_offset
     }
