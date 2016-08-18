@@ -162,9 +162,10 @@ fn scale_factor(exp: u64, etotal: u64, obs: u64, ototal: u64) -> f64 {
 
 fn compute_scale_factors(counts: &Vec<(u64, u64, u64, u64)>) -> Vec<(f64, f64)> {
     // compute totals
-    let totals = counts.iter().fold((0u64, 0u64, 0u64, 0u64),
+    // skip first row which contains unmappable/unusable position counts
+    let totals = counts.iter().skip(1).fold((0u64, 0u64, 0u64, 0u64),
         |acc, &(sp, sm, bp, bm)| ( acc.0 + sp, acc.1 + sm, acc.2 + bp, acc.3 + bm));
-    
+ 
     // compute scale
     // x = Obs * ExpFreq / ObsFreq
     // scale = ExpFreq / ObsFreq
