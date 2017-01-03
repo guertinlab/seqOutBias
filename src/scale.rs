@@ -176,7 +176,7 @@ fn compute_scale_factors(counts: &Vec<(u64, u64, u64, u64)>) -> Vec<(f64, f64)> 
     }).collect()
 }
 
-pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<String>, minqual: u8, shift: bool, no_scale: bool, pair_range: &Option<(i32, i32)>, paired: bool, exact_length: bool) -> PileUp {
+pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<String>, minqual: u8, shift: bool, no_scale: bool, pair_range: &Option<(i32, i32)>, paired: bool, exact_length: bool, tail_edge: bool) -> PileUp {
     // read
     let file = File::open(seqfile).ok().expect("read file");
     let mut table = match SeqTable::open(file) {
@@ -225,6 +225,7 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
         if pair_range.is_some() || paired {
             let checker = match *pair_range {
                 Some((min, max)) => PairedChecker {
+                    tail_edge: tail_edge,
                     exact_length: exact_length,
                     read_length: rlen,
                     min_quality: minqual,
@@ -234,6 +235,7 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
                     max_distance: true,
                 },
                 None => PairedChecker {
+                    tail_edge: tail_edge,
                     exact_length: exact_length,
                     read_length: rlen,
                     min_quality: minqual,
@@ -245,7 +247,7 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
             };
             while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, &scale, &checker) {}
         } else {
-            let checker = SingleChecker { exact_length: exact_length, read_length: rlen, min_quality: minqual };
+            let checker = SingleChecker { tail_edge: tail_edge, exact_length: exact_length, read_length: rlen, min_quality: minqual };
             while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, &scale, &checker) {}
         }
     }

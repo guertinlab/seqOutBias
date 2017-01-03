@@ -276,7 +276,7 @@ fn region_counts<R: ioRead + Seek>(table: &mut SeqTable<R>, bedregions: &str) ->
     counts
 }
 
-fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceInfo>, pair_range: &Option<(i32, i32)>, paired: bool, rlen: usize, minqual: u8, counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, regions: Option<&BedRanges>, exact_length: bool) {
+fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceInfo>, pair_range: &Option<(i32, i32)>, paired: bool, rlen: usize, minqual: u8, counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, regions: Option<&BedRanges>, exact_length: bool, tail_edge: bool) {
     println!("# tabulate {}", bamfilename);
             
     let bam = bam::Reader::new(&bamfilename).ok().expect("Error opening bam.");
@@ -302,6 +302,7 @@ fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceIn
     if pair_range.is_some() || paired {
         let checker = match *pair_range {
             Some((min, max)) => PairedChecker {
+                tail_edge: tail_edge,
                 exact_length: exact_length,
                 read_length: rlen,
                 min_quality: minqual,
@@ -311,6 +312,7 @@ fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceIn
                 max_distance: true,
             },
             None => PairedChecker {
+                tail_edge: tail_edge,
                 exact_length: exact_length,
                 read_length: rlen,
                 min_quality: minqual,
@@ -322,12 +324,12 @@ fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceIn
         };
         while process_bam_seq(counts, table, &mut iter, &mut cur_tid, &map, &checker, regions) {}
     } else {
-        let checker = SingleChecker { exact_length: exact_length, read_length: rlen, min_quality: minqual };
+        let checker = SingleChecker { tail_edge: tail_edge, exact_length: exact_length, read_length: rlen, min_quality: minqual };
         while process_bam_seq(counts, table, &mut iter, &mut cur_tid, &map, &checker, regions) {}
     }
 }
 
-pub fn tabulate(seqfile: &str, bamfile: Option<&Vec<String>>, minqual: u8, regions: Option<String>, pair_range: Option<(i32, i32)>, paired: bool, exact_length: bool) -> Vec<(u64, u64, u64, u64)> {
+pub fn tabulate(seqfile: &str, bamfile: Option<&Vec<String>>, minqual: u8, regions: Option<String>, pair_range: Option<(i32, i32)>, paired: bool, exact_length: bool, tail_edge: bool) -> Vec<(u64, u64, u64, u64)> {
     // read
     let file = File::open(seqfile).ok().expect("read file");
     let mut table = match SeqTable::open(file) {
@@ -358,7 +360,7 @@ pub fn tabulate(seqfile: &str, bamfile: Option<&Vec<String>>, minqual: u8, regio
         };
         
         for bamfilename in bamfilenames {
-            tabulate_bam(bamfilename.clone(), &seqinfos, &pair_range, paired, rlen, minqual, &mut counts, &mut table, ranges.as_ref(), exact_length);
+            tabulate_bam(bamfilename.clone(), &seqinfos, &pair_range, paired, rlen, minqual, &mut counts, &mut table, ranges.as_ref(), exact_length, tail_edge);
         }
     }
     

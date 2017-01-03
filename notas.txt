@@ -1,0 +1,194 @@
+* bed filter
+- option to supply bed file
+- parse bed file
+- pass filter to accounting function (fn update(...); maybe have a list of closures as filters)
+
+* global
+- refactor load-from-gzip 
+  
+  Problema!!! Não sei o tipo interno do BufReader ...
+  
+// refactoring - GZIP loader
+#[cfg(feature = "gzip")]
+fn open_gzreader(path: String, err_msg: &str) -> BufReader<??> {
+    let f = File::open(path.clone()).ok().expect(err_msg);
+    match GzDecoder::new(f) {
+        Ok(reader) => BufReader::new(reader),
+        Err(_) => {
+            // re-open file
+            let f = File::open(path).ok().expect(err_msg);
+            BufReader::new(f)
+        },
+    }
+}
+
+#[cfg(not(feature = "gzip"))]
+fn open_gzreader(path: String, err_msg: &str) -> BufReader {
+    let f = File::open(path).ok().expect(err_msg);
+    BufReader::new(f)
+}
+
+* write counts
+- define format
+- function to write output
+
+* BAM
+- option to supply BAM file
+- iterator for BAM range/chromosome
+- collect chromosome sequences
+- function to get ID (enzcut region) given current BAM position & strand
+- filter counts by BED regions
+
+
+-------------------------------
+
+
+for each sequence:
+    1. collect DNA sequence (& seq stats)
+    2. seek to sequence position [ pode falhar ? skip sequence ]
+    3. iterate until end of sequence
+        a. calc cut-site position => mapped (pos,length) & offset/ 
+        b. read-sum value
+        c. increment frequencies (in proper strand)
+
+notes:
+- já que estou a calcular o "cut_dna_value" à medida que leio a sequência, devia guardar esse valor
+  em vez de guardar as bases e depois recalcular esse valor!
+- e já agora, guardar esse valor na posição em que se espera ler, na strand correcta...
+
+- mappability / read length correction
+
+
+---------------------------------------
+
+          0 1 2 3 = offset_plus = 3
+                |
+                v
+                R R R R R
+- - - - - E E E E E - - - - -
+    R R R R R
+    ^       ^
+    |       |
+    |       3 2 1 0 = offset_minus = 3
+    |
+    actual position used by tallymer & SAM/BAM format
+    NOTE: however if reads have not been trimmed/filtered by read size before alignment, tallymer may not agree with SAM/BAM ...
+          i.e., can't be sure of SAM/BAM read position and should actually use the other end
+   
+    1. sum to tallymer unmapped position the read size
+    2. sum to SAM/BAM the aligned read seq size
+
+
+---------------------------------------
+
+Pre-processing of sequence file / tallymer data:
+
+- for a combination of input parameters (offsets, n-mer size, read size, sequence)
+
+  pre-compute the table index at each position to enable efficient parsing of BAM
+  files (with some value for unmappable positions ? zero ?)
+  
+  store this pre-computed index set in a compressed form on disk as it's being
+  created to avoid having to store the entire thing in memory which would take
+  several times the space of an uncompressed chromosome sequence
+  
+  the file format should at least compress each sequence into an independent stream
+  
+  [ header ] [ stream 1 ] ... [ stream n ] [ index ]
+  
+  header: - input parameters, index offset
+  index:  - per sequence names & stream offsets
+  
+  NOTE: it's a lot easier if we can assume a sorted BAM file ... samtools allows
+        one to sort the file so that's not to bad
+  
+  Maybe use the BGZP format that the hstlib uses ... ?
+  
+- BAM file 
+
+    5 Indexing BAM
+
+    Indexing aims to achieve fast retrieval of alignments overlapping a specified region without going through the whole alignments. BAM must be sorted by the reference ID and then the leftmost coordinate before indexing.
+
+    This section describes the binning scheme underlying coordinate-sorted BAM indices and its implementation in the long-established BAI format. The CSI format documented elsewhere uses a similar binning scheme and can also be used to index BAM.23
+  
+    ---
+    
+    Given the above, we can assume that index BAM files are sorted.
+    If no index is present, we'll sort the BAM and create the index file.
+
+
+--------------------------------------------------------
+
+given then unmappable position code (tallymer) and the seqtable code, we want to join both as we parse the
+FASTA file
+
+1) for each base written, the fasta state machine returns the table index (0 if unknown due to 'N's, or 1 + the cut-site index; reserving the first position on the table to unknown/unmappable)
+2) the position is checked against the unmappable code to see if it's mappable in the plus and/or minus sense, converting unmappable values to zero
+3) the resulting pair of values is written to the seqtable
+
+
+---------------------------------------------------------
+
+enzcut table [--bed=<BED file> --qual=<qval>] <seqtable> [<BAM file>]
+
+given a sequence table and optionally a BAM file, output a table of counts:
+
+<index> <seq plus> <seq minus> [<BAM plus> <BAM minus>]
+
+optionally take in a BED file and only perform counts within the BED regions
+optionally filter BAM reads by quality
+
+
+1) simple count across the entire genome
+2) simple count with BAM
+3) focused count
+
+---------------------------
+
+1064 302679140
+5120 303149342
+25600 297453178
+128000 297453178
+640000 294147011
+3200000 294045484
+
+-----------------------------
+
+pile-up creation:
+
+counts + bam -> stranded BtreeMap
+
+stranded BTreeMap -> BED
+stranded BTreeMap -> BigWig
+
+issues:
+
+1) seq position can be zero and thus can't be scaled (no matching n-mer)
+2) BigWig is not stranded by default
+
+
+-----------------------------
+
+aln-se.sam
+
+AACACTGCAACAGCAGTGTT
+
+CACTG - 14 (-1)
+GCAAC - 7  (+1)
+GTTGC - 7  (-1)
+GTGTT - 1  (-1)
+TGCAA - 6  (+1)
+
+1	4	5	.	-0.30000000000000004	-
+
+1	5	6	.	0.2	+
+1	6	7	.	0.2	+
+
+1	10	11	.	-0.30000000000000004	-
+1	17	18	.	-0.30000000000000004	-
+
+
+
+
+AACACTGCNAACAGCAGTGTT

@@ -6,16 +6,26 @@ pub trait RecordCheck {
 }
 
 pub struct SingleChecker {
+    pub tail_edge: bool,
     pub exact_length: bool,
     pub read_length: usize,
     pub min_quality: u8,
 }
 
-fn vir_pos_common(read_length: usize, exact_length: bool, rec: &Record) -> i32 {
-    if !exact_length && rec.is_reverse() {
-        rec.pos() + (rec.seq().len() as i32) - (read_length as i32)
+fn vir_pos_common(read_length: usize, tail_edge: bool, exact_length: bool, rec: &Record) -> i32 {
+    if tail_edge {
+        // instead of right edge of read (5') report left edge (3')
+        if rec.is_reverse() {
+            rec.pos() - (rec.seq().len() as i32) + 1
+        } else {
+            rec.pos() + (rec.seq().len() as i32) - 1
+        }
     } else {
-        rec.pos()
+        if !exact_length && rec.is_reverse() {
+            rec.pos() + (rec.seq().len() as i32) - (read_length as i32)
+        } else {
+            rec.pos()
+        }
     }
 }
 
@@ -25,11 +35,12 @@ impl RecordCheck for SingleChecker {
     }
 
     fn vir_pos(&self, rec: &Record) -> i32 {
-        vir_pos_common(self.read_length, self.exact_length, rec)
+        vir_pos_common(self.read_length, self.tail_edge, self.exact_length, rec)
     }
 }
 
 pub struct PairedChecker {
+    pub tail_edge: bool,
     pub exact_length: bool,
     pub read_length: usize,
     pub min_quality: u8,
@@ -60,6 +71,6 @@ impl RecordCheck for PairedChecker {
     }
 
     fn vir_pos(&self, rec: &Record) -> i32 {
-        vir_pos_common(self.read_length, self.exact_length, rec)
+        vir_pos_common(self.read_length, self.tail_edge, self.exact_length, rec)
     }
 }
