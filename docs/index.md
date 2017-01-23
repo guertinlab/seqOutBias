@@ -13,9 +13,9 @@ reuses intermediate results as much as possible.
 # Requirements
 
 - Platform: OS X or Linux
-- Compiler: rust >= 1.5.0 + cargo ( http://www.rust-lang.org )
-- Genome tools ( http://www.genometools.org )
-- wigToBigWig ( http://genome.ucsc.edu/admin/git.html or http://hgdownload.cse.ucsc.edu/admin/exe/)
+- Compiler: rust >= 1.5.0 + cargo ( [http://www.rust-lang.org](http://www.rust-lang.org) )
+- Genome tools ( [http://www.genometools.org](http://www.genometools.org) )
+- wigToBigWig ( [USCS Git Repository](http://genome.ucsc.edu/admin/git.html) or [Precompiled binaries](http://hgdownload.cse.ucsc.edu/admin/exe/))
 
 # Documentation
 
