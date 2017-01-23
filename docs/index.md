@@ -1,8 +1,7 @@
 Molecular biology enzymes have nucleic acid preferences for their substrates; the preference of an
 enzyme is typically dictated by the sequence at or near the active site of the enzyme. This bias may
 result in spurious read count patterns when used to interpret high-resolution molecular genomics data.
-The seqOutBias program aims to correct this issue by
-scaling the aligned read counts by the ratio of genome-wide observed read counts to the expected
+The seqOutBias program aims to correct this issue by scaling the aligned read counts by the ratio of genome-wide observed read counts to the expected
 sequence based counts for each k-mer. The sequence based k-mer counts take into account mappability
 at a given read length using Genome Tools' Tallymer program. The seqOutBias program allows for
 flexibility in specifying the k-mer, including varying the k-mer size, k-mer information spacing, and
@@ -15,7 +14,7 @@ reuses intermediate results as much as possible.
 - Platform: OS X or Linux
 - Compiler: rust >= 1.5.0 + cargo ( [http://www.rust-lang.org](http://www.rust-lang.org) )
 - Genome tools ( [http://www.genometools.org](http://www.genometools.org) )
-- wigToBigWig ( [USCS Git Repository](http://genome.ucsc.edu/admin/git.html) or [Precompiled binaries](http://hgdownload.cse.ucsc.edu/admin/exe/))
+- wigToBigWig ( [UCSC Git Repository](http://genome.ucsc.edu/admin/git.html) or [Precompiled binaries](http://hgdownload.cse.ucsc.edu/admin/exe/))
 
 # Documentation
 
