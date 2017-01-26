@@ -325,3 +325,50 @@ matrix.func <- function(counts.table) {
     mat = as.matrix(mat)
     return(mat)
 }
+
+
+composites.func.pro <- function(dat, fact = 'Factor', summit = 'Summit', num=90, 
+              col.lines = c(rgb(0,0,1,1/2), rgb(1,0,0,1/2),  rgb(0.1,0.5,0.05,1/2), rgb(0,0,0,1/2),  
+              rgb(1/2,0,1/2,1/2), rgb(0,1/2,1/2,1/2), rgb(1/2,1/2,0,1/2)), fill.poly = c(rgb(0,0,1,1/4), 
+              rgb(1,0,0,1/4), rgb(0.1,0.5,0.05,1/4),rgb(0,0,0,1/4), rgb(1/2,0,1/2,1/4))) {
+  count = length(unique(dat$grp))
+  ct.cons = 0
+  lst.cons = list()
+  unique(dat$grp)[order(unique(dat$grp))]
+  for (i in unique(dat$grp)[order(unique(dat$grp))]) {
+      ct.cons= ct.cons + 1
+      lst.cons[[ct.cons]] = c(min(dat[dat$grp == i,]$lower), max(dat[dat$grp == i,]$upper))
+  }
+  pdf(paste('composite_', fact, '_signals_', summit, '_peaks.pdf', sep=''), width=10.2, 
+      height=10.2) 
+  print(xyplot(est ~ x|grp, group = cond, data = dat,
+               type = 'l',
+               scales=list(x=list(cex=0.8,relation = "free"), y =list(cex=0.8, relation="free")),
+               xlim=c(-(num),(num)),
+               ylim = lst.cons,
+               col = col.lines,
+               auto.key = list(points=F, lines=T, cex=0.8),
+               par.settings = list(superpose.symbol = list(pch = c(16), col=col.lines, cex =0.5), 
+                   superpose.line = list(col = col.lines, lwd=c(2,2,0.8,2,0.8,0.8,0.8), 
+                       lty = c(1,1,1,1,1,1,1,1,1))),
+               cex.axis=1.0,
+               par.strip.text=list(cex=0.9, font=1, col='black'),
+               aspect=1.0,
+               between=list(y=0.5, x=0.5),
+               layout=c(3,3),
+               ylab = list(label = paste(fact," Cut Frequency", sep=''), cex =0.8),
+               xlab = list(label = paste("Distance from ", summit, " center",sep=''), cex =0.8),
+               upper = dat$upper,
+               fill = fill.poly,
+               lower = dat$lower,
+               strip = function(..., which.panel, bg) {
+                 bg.col = c("grey85")
+                 strip.default(..., which.panel = which.panel, bg = rep(bg.col, length = which.panel)[which.panel])
+             },
+               panel = function(x, y, ...){
+                   panel.superpose(x, y, panel.groups = 'my.panel.bands', ...)
+                   panel.xyplot(x, y, ...)
+       }
+  ))
+  dev.off()
+}
