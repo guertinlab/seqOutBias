@@ -372,3 +372,29 @@ composites.func.pro <- function(dat, fact = 'Factor', summit = 'Summit', num=90,
   ))
   dev.off()
 }
+
+pswm.func <- function(x.ligation, out = 'outfilename') {
+    a = lapply(strsplit(as.character(x.ligation[,2]), ''), "[", 1)
+    b = lapply(strsplit(as.character(x.ligation[,2]), ''), "[", 2)
+    c = lapply(strsplit(as.character(x.ligation[,2]), ''), "[", 3)
+    d = lapply(strsplit(as.character(x.ligation[,2]), ''), "[", 4)
+    e = lapply(strsplit(as.character(x.ligation[,2]), ''), "[", 5)
+    f = lapply(strsplit(as.character(x.ligation[,2]), ''), "[", 6)
+
+    col.matrix = cbind(a,b,c,d,e,f)
+    a.nuc = sapply(1:6, function(x) sum(col.matrix[,x] == "A"))
+    t.nuc = sapply(1:6, function(x) sum(col.matrix[,x] == "T"))
+    c.nuc = sapply(1:6, function(x) sum(col.matrix[,x] == "C"))
+    g.nuc = sapply(1:6, function(x) sum(col.matrix[,x] == "G"))
+    
+    cbind(a.nuc, c.nuc, g.nuc, t.nuc)
+    pswm = cbind(a.nuc, c.nuc, g.nuc, t.nuc)
+    outfile = file(out)
+    writeLines(c("MEME version 4", "ALPHABET= ACGT", "strands: + -", " ", 
+                 "Background letter frequencies (from uniform background):", 
+                 "A 0.25000 C 0.25000 G 0.25000 T 0.25000", paste("MOTIF", out), " ",
+                 "letter-probability matrix: alength= 4 w= 6"), outfile)
+    pswm = pswm/rowSums(pswm)
+    write.table(pswm, file = out, append = TRUE, quote=FALSE, row.names =FALSE, col.names = FALSE)
+    system(paste('ceqlogo -i ', out, ' -m 1 > ', out, '.eps', sep=''))
+}
