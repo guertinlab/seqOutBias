@@ -56,10 +56,6 @@ pub fn write_bigwig(filename: &OsStr, chroms: &Vec<String>, chrom_sizes: &Vec<u3
                         .rand_bytes(5)
                         .create()
                         .unwrap();
-    let chrominfo_name = chrominfo_tmpfile.path()
-                        .file_name().unwrap()
-                        .to_str().unwrap();
-    try!(write_chrom_info(chrominfo_name, chroms, chrom_sizes));
     
     // create temporary wiggle file
     let wiggle_tmpfile = NamedTempFileOptions::new()
@@ -68,27 +64,39 @@ pub fn write_bigwig(filename: &OsStr, chroms: &Vec<String>, chrom_sizes: &Vec<u3
                         .rand_bytes(5)
                         .create()
                         .unwrap();
-    let wiggle_name = wiggle_tmpfile.path()
-                      .file_name().unwrap()
-                      .to_str().unwrap();
-    try!(write_wiggle(wiggle_name, chroms, counts, strand));
-    
-    // run wigToBigWig
-    let status = Command::new("wigToBigWig")
-        .arg("-keepAllChromosomes")
-        .arg("-clip")
-        .arg(wiggle_name)
-        .arg(chrominfo_name)
-        .arg(filename)
-        .status().unwrap_or_else(|e| {
-            panic!("failed to execute wigToBigWig: {}", e)
-    });
-    
-    // NOTE: Temporary files are deleted when their variables (wiggle_tmpfile and chrominfo_tmpfile) go out of scope
-    //
-    if !status.success() {
-        return Err(Error::new(ErrorKind::Other, format!("An error occurred running: wigToBigWig -keepAllChromosomes {:?} {:?} {:?}", filename, wiggle_name, chrominfo_name)));
+
+    { // block constrains lifetime of borrow on temporary file names
+        // write to temporary files
+        let chrominfo_name = chrominfo_tmpfile.path()
+                            .file_name().unwrap()
+                            .to_str().unwrap();
+        try!(write_chrom_info(chrominfo_name, chroms, chrom_sizes));
+
+        let wiggle_name = wiggle_tmpfile.path()
+                        .file_name().unwrap()
+                        .to_str().unwrap();
+        try!(write_wiggle(wiggle_name, chroms, counts, strand));
+        
+        // run wigToBigWig
+        let status = Command::new("wigToBigWig")
+            .arg("-keepAllChromosomes")
+            .arg("-clip")
+            .arg(wiggle_name)
+            .arg(chrominfo_name)
+            .arg(filename)
+            .status().unwrap_or_else(|e| {
+                panic!("failed to execute wigToBigWig: {}", e)
+        });
+        
+        //
+        if !status.success() {
+            return Err(Error::new(ErrorKind::Other, format!("An error occurred running: wigToBigWig -keepAllChromosomes {:?} {:?} {:?}", filename, wiggle_name, chrominfo_name)));
+        }
     }
+
+    // force release of temporary files
+    wiggle_tmpfile.close().unwrap();
+    chrominfo_tmpfile.close().unwrap();
     
     Ok(())
 }
