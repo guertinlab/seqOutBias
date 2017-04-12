@@ -1,6 +1,6 @@
 [package]
 name = "seqOutBias"
-version = "1.0.2"
+version = "1.0.3"
 authors = ["André Martins <alm253@cornell.edu>"]
 
 [dependencies]
@@ -9,6 +9,6 @@ rustc-serialize = "0.3"
 num = "*"
 rust-htslib = "0.6"
 flate2 = "0.2"
-byteorder="0.5"
+byteorder = "0.5"
 bincode = "0.5"
-
+tempfile = "2.1"
