@@ -6,6 +6,7 @@ use std::process::exit;
 use std::fs::File;
 use super::read::SeqTable;
 use super::read::SequenceInfo;
+use std::error::Error;
 
 fn dump_header<R: Read + Seek>(table: &SeqTable<R>) {
     let params = table.params();
@@ -45,7 +46,13 @@ fn decode_range(range: &str) -> (String, Option<(u32,u32)>) {
 /// range can take the form: <chrom>:<start>-<end> or just <chrom>
 pub fn dump_seqtable_range(filename: &str, range: &str) {
     // read
-    let file = File::open(filename).ok().expect("read file");
+    let file = match File::open(filename) {
+        Ok(value) => value,
+        Err(err) => {
+            println!("Error: failed to open sequence table file '{}': {}", filename, err.description());
+            exit(1);
+        }
+    };
     let mut table = SeqTable::open(file).ok().expect("read store");
     
     // print header
@@ -81,7 +88,13 @@ pub fn dump_seqtable_range(filename: &str, range: &str) {
 /// Output entire sequence table
 pub fn dump_seqtable(filename: &str) {
     // read
-    let file = File::open(filename).ok().expect("read file");
+    let file = match File::open(filename) {
+        Ok(value) => value,
+        Err(err) => {
+            println!("Error: failed to open sequence table file '{}': {}", filename, err.description());
+            exit(1);
+        }
+    };
     let mut table = SeqTable::open(file).ok().expect("read store");
     
     // print header

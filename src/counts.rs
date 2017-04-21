@@ -241,7 +241,7 @@ fn bed_regions<R: ioRead + Seek>(filename: &str, table: &mut SeqTable<R>) -> Bed
     match BedRanges::parse(filename, chroms) {
         Ok(iter) => iter,
         Err(e) => {
-            println!("Error reading BED file {}: {}", filename, e.description()); 
+            println!("Error: Failed to read BED file {}: {}", filename, e.description()); 
             exit(1); 
         },
     }
@@ -279,7 +279,13 @@ fn region_counts<R: ioRead + Seek>(table: &mut SeqTable<R>, bedregions: &str) ->
 fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceInfo>, pair_range: &Option<(i32, i32)>, paired: bool, rlen: usize, minqual: u8, counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, regions: Option<&BedRanges>, exact_length: bool, tail_edge: bool) {
     println!("# tabulate {}", bamfilename);
             
-    let bam = bam::Reader::new(&bamfilename).ok().expect("Error opening bam.");
+    let bam = match bam::Reader::new(&bamfilename) {
+        Ok(value) => value,
+        Err(err) => {
+            println!("Error: Failed to open BAM '{}': {}", &bamfilename, err.description());
+            exit(1);
+        },
+    };
     let names = bam.header.target_names();
     let mut cur_tid = 0;
     
@@ -331,7 +337,13 @@ fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceIn
 
 pub fn tabulate(seqfile: &str, bamfile: Option<&Vec<String>>, minqual: u8, regions: Option<String>, pair_range: Option<(i32, i32)>, paired: bool, exact_length: bool, tail_edge: bool) -> Vec<(u64, u64, u64, u64)> {
     // read
-    let file = File::open(seqfile).ok().expect("read file");
+    let file = match File::open(seqfile) {
+        Ok(value) => value,
+        Err(err) => {
+            println!("Error: Failed to open sequence table file '{}': {}", seqfile, err.description());
+            exit(1);
+        },
+    };
     let mut table = match SeqTable::open(file) {
         Ok(value) => value,
         Err(e) => {

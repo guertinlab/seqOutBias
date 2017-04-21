@@ -6,13 +6,14 @@ use htslib::bam::Read;
 use htslib::bam::Reader;
 use htslib::bam::Records;
 use std::path::Path;
+use std::error::Error;
 use std::fs::File;
 use std::ffi::OsString;
 use std::ffi::OsStr;
 use std::io::Read as ioRead;
 use std::io::Write as ioWrite;
 use std::io::Seek;
-use std::io::Error;
+use std::io::Error as ioError;
 use std::process::exit;
 use std::iter::Peekable;
 use seqtable::{SeqTable,SequenceInfo};
@@ -94,7 +95,7 @@ impl PileUp {
         }
     }
     
-    pub fn write_bed(&self, filename: &str, stranded: bool) -> Result<(),Error> {
+    pub fn write_bed(&self, filename: &str, stranded: bool) -> Result<(),ioError> {
         // open new file
         let mut f = try!(File::create(filename));
         
@@ -135,7 +136,7 @@ impl PileUp {
     }
     
     pub fn write_bw(&self, filename: &str, stranded: bool) -> Result<(String
-    , Option<String>), Error> {
+    , Option<String>), ioError> {
         if stranded {
             let output_plus = PileUp::bw_stranded_filename(filename, Strand::Plus);
             let output_minus = PileUp::bw_stranded_filename(filename, Strand::Minus);
@@ -178,7 +179,13 @@ fn compute_scale_factors(counts: &Vec<(u64, u64, u64, u64)>) -> Vec<(f64, f64)> 
 
 pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<String>, minqual: u8, shift: bool, no_scale: bool, pair_range: &Option<(i32, i32)>, paired: bool, exact_length: bool, tail_edge: bool) -> PileUp {
     // read
-    let file = File::open(seqfile).ok().expect("read file");
+    let file = match File::open(seqfile) {
+        Ok(value) => value,
+        Err(err) => {
+            println!("Error: Failed to open sequence table file '{}': {}", seqfile, err.description());
+            exit(1);
+        },
+    };
     let mut table = match SeqTable::open(file) {
         Ok(value) => value,
         Err(e) => {
@@ -201,7 +208,13 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
     
     for bamfile in bamfiles {
         println!("# scale {}", &bamfile);
-        let bam = bam::Reader::new(&Path::new(bamfile)).ok().expect("Error opening bam.");
+        let bam = match bam::Reader::new(&Path::new(bamfile)) {
+            Ok(value) => value,
+            Err(err) => {
+                println!("Error: Failed to open BAM file '{}': {}", bamfile, err.description());
+                exit(1);
+            },
+        };
         let names = bam.header.target_names();
         let mut cur_tid = 0;
         

@@ -3,6 +3,7 @@
 //!
 use std::collections::VecDeque;
 use tallyread::{UnMap,UnMapPosition};
+use std::error::Error;
 use std::process::exit;
 use std::io::BufRead;
 use std::fs::File;
@@ -62,7 +63,13 @@ impl SeqTableParams {
   }
 
   pub fn from_file(filename: &str) -> Self {
-    let file = File::open(filename).ok().expect("read file");
+    let file = match File::open(filename) {
+      Ok(value) => value,
+      Err(err) => {
+        println!("Error: Failed to open sequence table file '{}': {}", filename, err.description());
+        exit(1);
+      },
+    };
     let table = match SeqTable::open(file) {
         Ok(value) => value,
         Err(e) => {
