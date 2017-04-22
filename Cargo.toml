@@ -3,6 +3,10 @@ name = "seqOutBias"
 version = "1.0.4"
 authors = ["André Martins <alm253@cornell.edu>"]
 
+[lib]
+name = "seqoutbiaslib"
+path = "src/lib.rs"
+
 [dependencies]
 docopt = "0.6"
 rustc-serialize = "0.3"
