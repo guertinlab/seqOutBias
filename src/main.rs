@@ -1,21 +1,14 @@
 #![allow(non_snake_case)]
 
+extern crate seqoutbiaslib;
 extern crate rustc_serialize;
 extern crate docopt;
-extern crate num;
-extern crate flate2;
-extern crate byteorder;
-extern crate bincode;
-extern crate rust_htslib as htslib;
 
-mod tallyrun;
-mod tallyread;
-mod seqtable;
-mod fasta;
-mod filter;
-mod counts;
-mod bigwig;
-mod scale;
+use seqoutbiaslib::tallyrun;
+use seqoutbiaslib::seqtable;
+use seqoutbiaslib::fasta;
+use seqoutbiaslib::counts;
+use seqoutbiaslib::scale;
 
 use docopt::Docopt;
 use std::process::exit;
