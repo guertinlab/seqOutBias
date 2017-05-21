@@ -15,3 +15,7 @@ mod filter;
 pub mod counts;
 mod bigwig;
 pub mod scale;
+
+pub mod c_api;
+
+pub use c_api::*;
