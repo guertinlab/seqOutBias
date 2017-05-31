@@ -1,29 +1,21 @@
 #![allow(non_snake_case)]
 
+extern crate seqoutbiaslib;
 extern crate rustc_serialize;
 extern crate docopt;
-extern crate num;
-extern crate flate2;
-extern crate byteorder;
-extern crate bincode;
-extern crate rust_htslib as htslib;
 
-mod tallyrun;
-mod tallyread;
-mod seqtable;
-mod fasta;
-mod filter;
-mod counts;
-mod bigwig;
-mod scale;
+use seqoutbiaslib::tallyrun;
+use seqoutbiaslib::seqtable;
+use seqoutbiaslib::fasta;
+use seqoutbiaslib::counts;
+use seqoutbiaslib::scale;
+use seqoutbiaslib::file_exists;
 
 use docopt::Docopt;
 use std::process::exit;
 use std::error::Error;
 use std::path::Path;
-use std::fs;
 use std::fs::File;
-use std::io::ErrorKind;
 use seqtable::SeqTable;
 
 /* Main usage/arguments */
@@ -131,38 +123,9 @@ fn stem_filename(stem_src: &str, suffix: &str, out_arg: Option<String>) -> Strin
     }
 }
 
-fn file_exists(filename: &str) -> bool {
-	match fs::metadata(filename) {
-		Ok(meta) => meta.is_file(),
-		Err(err) => match err.kind() {
-			ErrorKind::NotFound => false,
-			_ => { println!("Failed to open file {}: {:}", filename, err); exit(-1) },
-		}, 
-	}
-}
-
 fn validate_mask(mask: &str) {
-    let mut c_count = 0;
-    let mut n_count = 0;
-    for c in mask.chars() {
-        if c == 'C' || c == 'c' {
-            c_count += 1;
-        } else if c == 'x' || c == 'X' {
-            // ok, nothing to do
-        } else if c == 'n' || c == 'N' {
-            n_count += 1;
-        } else {
-            println!("Invalid kmer-mask, unknown character: {}", c);
-            exit(1);
-        }
-    }
-
-    if n_count == 0 {
-        println!("Invalid kmer-mask, must have at least one unmasked (N) position.");
-        exit(1);
-    }
-    if c_count > 1 {
-        println!("Invalid kmer-mask, can only have one cut position (C).");
+    if let Err(error) = seqtable::SeqTableParams::validate_mask(mask) {
+        println!("{}", error);
         exit(1);
     }
 }
@@ -265,6 +228,10 @@ fn main() {
             args.flag_minus_offset,
             args.flag_read_size,
             &args.flag_kmer_mask);
+        
+        println!("# kmer-size: {}", seq_params.kmer_length);
+        println!("# plus-offset: {}", seq_params.plus_offset);
+        println!("# minus-offset: {}", seq_params.minus_offset);
         
         let suffix = format!("_{}.{}.{}.{}.tbl", seq_params.read_length, seq_params.kmer_length, seq_params.plus_offset, seq_params.minus_offset);
         let outfile = stem_filename(&args.arg_fasta_file, &suffix, args.flag_out);

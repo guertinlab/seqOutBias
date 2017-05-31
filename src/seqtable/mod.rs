@@ -34,9 +34,6 @@ impl SeqTableParams {
         } else {
           kmer_length = uc_mask.len() as u8;
         }
-        println!("# kmer-size: {}", kmer_length);
-        println!("# plus-offset: {}", plus_offset);
-        println!("# minus-offset: {}", minus_offset);
 
         let bmask: Vec<bool> = uc_mask.chars().filter(|c| *c != 'C').map(|c| c == 'N').collect();
         let bcount = bmask.iter().fold(0u8, |acc, &x| if x { acc + 1 } else { acc });
@@ -82,6 +79,31 @@ impl SeqTableParams {
 
   pub fn nmer_count(&self) -> u32 {
     4u32.pow(self.unmasked_count as u32) + 1
+  }
+
+  pub fn validate_mask(mask: &str) -> Result<(), String> {
+    let mut c_count = 0;
+    let mut n_count = 0;
+    for c in mask.chars() {
+        if c == 'C' || c == 'c' {
+            c_count += 1;
+        } else if c == 'x' || c == 'X' {
+            // ok, nothing to do
+        } else if c == 'n' || c == 'N' {
+            n_count += 1;
+        } else {
+            return Err(format!("Invalid kmer-mask, unknown character: {}", c));
+        }
+    }
+
+    if n_count == 0 {
+      return Err("Invalid kmer-mask, must have at least one unmasked (N) position.".to_string());
+    }
+    if c_count > 1 {
+      return Err("Invalid kmer-mask, can only have one cut position (C).".to_string());
+    }
+
+    return Ok(());
   }
 }
 

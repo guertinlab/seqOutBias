@@ -18,6 +18,7 @@ use std::process::exit;
 use std::iter::Peekable;
 use seqtable::{SeqTable,SequenceInfo};
 use std::collections::BTreeMap;
+use std::collections::btree_map::Iter;
 use bigwig::write_bigwig;
 use bigwig::Strand;
 use filter::{RecordCheck, PairedChecker, SingleChecker};
@@ -152,6 +153,23 @@ impl PileUp {
             try!(write_bigwig(OsStr::new(filename), &self.chroms, &self.chrom_sizes, &self.counts, Strand::Both));
             Ok((String::from(filename), None))
         }
+    }
+
+    pub fn chrom_index(&self, chrom: &str) -> Option<usize> {
+        self.chroms.iter().position(|x| x == chrom)
+    }
+
+    pub fn chrom_size(&self, index: usize) -> Option<u32> {
+        self.chrom_sizes.get(index).map(|&x| x)
+    }
+
+    pub fn get(&self, chrom_index: usize, position: u32) -> Option<&(f64, f64)> {
+        if chrom_index >= self.counts.len() { return None; }
+        self.counts[chrom_index].get(&position)
+    }
+
+    pub fn chrom_iter(&self, index: usize) -> Iter<u32, (f64, f64)> {
+        self.counts[index].iter()
     }
 }
 

@@ -1,14 +1,22 @@
 [package]
 name = "seqOutBias"
-version = "1.0.4"
+version = "1.1.0"
 authors = ["André Martins <alm253@cornell.edu>"]
+
+[lib]
+name = "seqoutbiaslib"
+path = "src/lib.rs"
+crate-type = ["rlib","cdylib"]
 
 [dependencies]
 docopt = "0.6"
 rustc-serialize = "0.3"
-num = "*"
 rust-htslib = "0.9"
 flate2 = "0.2"
 byteorder = "0.5"
 bincode = "0.5"
 tempfile = "2.1"
+libc = "0.2"
+
+[build-dependencies]
+rusty-cheddar = "0.3"
