@@ -16,7 +16,7 @@ use std::process::exit;
 use std::error::Error;
 use std::path::Path;
 use std::fs::File;
-use seqtable::SeqTable;
+use seqoutbiaslib::seqtable::SeqTable;
 
 /* Main usage/arguments */
 
