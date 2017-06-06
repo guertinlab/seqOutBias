@@ -5,8 +5,6 @@ use std::io::prelude::*;
 use std::io::Result;
 use std::io::Error;
 use std::io::ErrorKind;
-use std::io::Lines;
-use std::collections::BTreeMap;
 use std::mem::swap;
 
 /// Specifies if a position is unmappable in each strand.
@@ -16,15 +14,21 @@ pub struct UnMapPosition {
     pub minus: bool,
 }
 
+struct UnMapCell {
+    position: u32,
+    data: UnMapPosition,
+}
+
 pub struct UnMap<R: BufRead> {
-    data: BTreeMap<u32, UnMapPosition>, // map from position to pair (unmappable in plus, unmappable in minus)
-    data_next: BTreeMap<u32, UnMapPosition>, // will contain the data for the next sequence, if any 
-    lines: Lines<R>,
+    data: Vec<UnMapCell>, // map from position to pair (unmappable in plus, unmappable in minus)
+    data_next: Vec<UnMapCell>, // will contain the data for the next sequence, if any 
+    reader: R,
+    line: Vec<u8>,
     seqnumber: u32,
     next_seqnumber: u32,
 }
 
-fn parse_line(bytes: Vec<u8>) -> Result<(u32, u32, bool)> {
+fn parse_line(bytes: &[u8]) -> Result<(u32, u32, bool)> {
     let mut seq_idx = 0u32;
     let mut pos = 0u32;
     let mut idx = 0;
@@ -61,9 +65,10 @@ impl<R: BufRead> UnMap<R> {
 	/// Open mappability file, pre-loading data for the first sequence
 	pub fn open(reader: R) -> Result<UnMap<R>> {
         let mut result = UnMap {
-            data: BTreeMap::new(),
-            data_next: BTreeMap::new(),
-            lines: reader.lines(),
+            data: Vec::new(),
+            data_next: Vec::new(),
+            reader: reader,
+            line: Vec::new(),
             seqnumber: 0,
             next_seqnumber: 0,
         };
@@ -72,25 +77,33 @@ impl<R: BufRead> UnMap<R> {
         return Ok(result);
 	}
     
-    fn insert_value(map: &mut BTreeMap<u32, UnMapPosition>, pos: u32, is_minus: bool) {
-        if let Some(entry) = map.get_mut(&pos) {
-            if is_minus {
-                entry.minus = true;
-            } else {
-                entry.plus = true;
-            }
-            return;
+    fn insert_value(map: &mut Vec<UnMapCell>, pos: u32, is_minus: bool) {
+        match map.last_mut() {
+            Some(ref mut entry) if entry.position == pos => {
+                if is_minus {
+                    entry.data.minus = true;
+                } else {
+                    entry.data.plus = true;
+                }
+
+                return;
+            },
+            _ => {},
         }
-        
-        // else (not written as an else to satisfy the borrow checker!)
-        map.insert(pos, UnMapPosition { plus: !is_minus, minus: is_minus });
+        map.push(UnMapCell{
+                position: pos,
+                data: UnMapPosition {
+                    plus: !is_minus,
+                    minus: is_minus,
+                }
+        });
     }
 	
     fn read_sequence_data(&mut self) -> Result<()> {
         // read until either no more data or if find a row for the next sequence
-        while let Some(line) = self.lines.next() {
-            let line = try!(line);
-            let (seq, pos, is_minus) = try!(parse_line(line.into_bytes()));
+        self.line.clear();
+        while self.reader.read_until(b'\n', &mut self.line).unwrap() > 0 {
+            let (seq, pos, is_minus) = try!(parse_line(&self.line));
             
             if seq == self.seqnumber {
                 Self::insert_value(&mut self.data, pos, is_minus);
@@ -99,6 +112,9 @@ impl<R: BufRead> UnMap<R> {
                 self.next_seqnumber = seq;
                 break;
             }
+
+            // clear buffer
+            self.line.clear();
         }
         Ok(())
     }
@@ -131,9 +147,18 @@ impl<R: BufRead> UnMap<R> {
     ///
     /// Returns a pair of boolean values, which are true if the plus or minus strand read, respectively, is mappable at that position.
     pub fn is_unmappable(&self, position: u32) -> UnMapPosition {
-        match self.data.get(&position) {
-            Some(&result) => result,
-            None => UnMapPosition { plus: false, minus: false }, // if not in map, then it's not unmappable
+        match self.data.binary_search_by( |probe| probe.position.cmp(&position) ) {
+            Ok(index) => {
+                unsafe {
+                    self.data.get_unchecked(index).data
+                }
+            },
+            _ => UnMapPosition { plus: false, minus: false }, // if not in map, then it's not unmappable
         }
+    }
+
+    /// get current sequence number
+    pub fn sequence_number(&self) -> u32 {
+        self.seqnumber
     }
 }
