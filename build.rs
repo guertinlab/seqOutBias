@@ -3,7 +3,7 @@
 extern crate cheddar;
 extern crate rustc_version;
 
-use rustc_version::{version, Version};
+use rustc_version::version_matches;   
 use std::io::{self, Write};
 use std::process::exit;
 
@@ -13,7 +13,7 @@ fn main() {
         .run_build("target/include/seqoutbiaslib.h");
     
     // Check for a minimum version
-    if version().unwrap() < Version::parse("1.11.0").unwrap() {
+    if !version_matches(">= 1.11.0") {
         writeln!(&mut io::stderr(), "This crate requires rustc >= 1.11.0.").unwrap();
         exit(1);
     }

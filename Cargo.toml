@@ -21,4 +21,4 @@ libc = "0.2"
 
 [build-dependencies]
 rusty-cheddar = "0.3"
-rustc_version = "0.2"
+rustc_version = "0.1"
