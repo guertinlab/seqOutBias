@@ -14,9 +14,9 @@ reuses intermediate results as much as possible.
 - Platform: OS X or Linux
 - Compiler: **rust >= 1.11.0** + cargo ( [http://www.rust-lang.org](http://www.rust-lang.org) )
 - Genome tools ( [http://genometools.org](http://genometools.org) )
-- wigToBigWig ( [UCSC Git Repository](http://genome.ucsc.edu/admin/git.html) or [Precompiled binaries](http://hgdownload.cse.ucsc.edu/admin/exe/))
+- wigToBigWig ( [UCSC Git Repository](http://genome.ucsc.edu/admin/git.html) or [Precompiled binaries](http://hgdownload.cse.ucsc.edu/admin/exe/) )
 
 # Documentation
 
 - [User guide](https://guertinlab.github.io/seqOutBias/seqOutBias_user_guide.pdf)
-- [Vignette](https://guertinlab.github.io/seqOutBias/seqOutBias_vignette.pdf)
+- [Vignette](https://guertinlab.github.io/seqOutBias/seqOutBias_vignette.pdf) ( [online version](https://guertinlab.github.io/seqOutBias_Vignette) )
