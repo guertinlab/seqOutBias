@@ -226,14 +226,14 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
     
     for bamfile in bamfiles {
         println!("# scale {}", &bamfile);
-        let bam = match bam::Reader::new(&Path::new(bamfile)) {
+        let bam = match bam::Reader::from_path(&Path::new(bamfile)) {
             Ok(value) => value,
             Err(err) => {
                 println!("Error: Failed to open BAM file '{}': {}", bamfile, err.description());
                 exit(1);
             },
         };
-        let names = bam.header.target_names();
+        let names = bam.header().target_names();
         let mut cur_tid = 0;
         
         // map BAM tid's to SeqTable idx's

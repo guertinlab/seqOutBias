@@ -279,14 +279,14 @@ fn region_counts<R: ioRead + Seek>(table: &mut SeqTable<R>, bedregions: &str) ->
 fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceInfo>, pair_range: &Option<(i32, i32)>, paired: bool, rlen: usize, minqual: u8, counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, regions: Option<&BedRanges>, exact_length: bool, tail_edge: bool) {
     println!("# tabulate {}", bamfilename);
             
-    let bam = match bam::Reader::new(&bamfilename) {
+    let bam = match bam::Reader::from_path(&bamfilename) {
         Ok(value) => value,
         Err(err) => {
             println!("Error: Failed to open BAM '{}': {}", &bamfilename, err.description());
             exit(1);
         },
     };
-    let names = bam.header.target_names();
+    let names = bam.header().target_names();
     let mut cur_tid = 0;
     
     // map BAM tid's to SeqTable idx's

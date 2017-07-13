@@ -12,7 +12,7 @@ crate-type = ["rlib","cdylib"]
 [dependencies]
 docopt = "0.6"
 rustc-serialize = "0.3"
-rust-htslib = "0.9"
+rust-htslib = "0.12"
 flate2 = "0.2"
 byteorder = "0.5"
 bincode = "0.5"
