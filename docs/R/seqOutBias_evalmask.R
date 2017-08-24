@@ -63,7 +63,7 @@ eval.cutmask <- function(motif.sets, bw.plus, bw.minus) {
     for (bed6 in motif.sets) {
         x = colSums(bed6.step.bpQuery.bigWig(bw.plus, bw.minus, bed6, step = 1, 
                               with.attributes = FALSE, as.matrix = TRUE, follow.strand = TRUE))
-        metric = metric + sqrt(sum((x - mean(x))^2))
+        metric = metric + sqrt(sum((x - mean(x))^2)/(length(x) - 1))
     }
 
     return(metric)
