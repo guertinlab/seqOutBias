@@ -210,7 +210,11 @@ fn main() {
             exit(1);
         }
         
-        let path = tallyrun::tallymer_createfile(&args.arg_fasta_file, args.flag_read_size, args.flag_parts);
+        let path = if args.cmd_tallymer {
+            tallyrun::tallymer_createfile(&args.arg_fasta_file, args.arg_read_size, args.flag_parts)
+        } else {
+            tallyrun::tallymer_createfile(&args.arg_fasta_file, args.flag_read_size, args.flag_parts)
+        };
         println!("# tallymer produced/found {:}", path.to_str().unwrap());
         Some(path)
     } else { None };
