@@ -20,6 +20,7 @@ use std::ops::Range;
 use std::iter::Peekable;
 use seqtable::{SeqTableParams,SeqTable,SequenceInfo};
 use std::cmp::Ordering;
+use std::str;
 use filter::{RecordCheck, PairedChecker, SingleChecker};
 
 struct KeyIter<'a> {
@@ -203,6 +204,7 @@ fn process_bam_seq<R: ioRead+Seek, C: RecordCheck>(counts: &mut Vec<(u64, u64, u
     }
     
     let chrom_idx = map[*tid as usize];
+    let len_idx = table.len_by_idx(chrom_idx).ok().expect("read sequence length") as i32;
     let mut rdr = table.get_sequence_by_idx(chrom_idx).ok().expect("read sequence");
     
     loop {
@@ -223,13 +225,18 @@ fn process_bam_seq<R: ioRead+Seek, C: RecordCheck>(counts: &mut Vec<(u64, u64, u
             
             //
             if good && checker.valid(&record) {
-                let pair = rdr.vir_get(checker.vir_pos(&record)).unwrap();
-                
-                if record.is_reverse() {
-                    counts[pair.1 as usize].3 += 1;
+                let pos = checker.vir_pos(&record);
+                if pos >= len_idx {
+                    println!("WARN:{}: read extends beyond reference sequence length ({} > {}). Read ignored.", str::from_utf8(record.qname()).unwrap(), pos + 1, len_idx);
                 } else {
-                    counts[pair.0 as usize].2 += 1;
-                } 
+                    let pair = rdr.vir_get(pos).unwrap();
+                    
+                    if record.is_reverse() {
+                        counts[pair.1 as usize].3 += 1;
+                    } else {
+                        counts[pair.0 as usize].2 += 1;
+                    } 
+                }
             }
         } 
     }

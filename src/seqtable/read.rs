@@ -166,6 +166,14 @@ impl<R: Read + Seek> SeqTable<R> {
     pub fn len(&self) -> usize {
         self.infotable.len()
     }
+
+    pub fn len_by_idx(&self, idx: usize) -> Result<u32> {
+        if self.infotable.len() <= idx {
+            Err(Error::new(ErrorKind::NotFound, "sequence not found"))
+        } else {
+            Ok(self.infotable[idx].length)
+        }
+    }
 }
 
 #[derive(Debug)]

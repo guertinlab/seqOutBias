@@ -60,6 +60,7 @@ impl PileUp {
         
         let sidx = map[*tid as usize];
         let rlen = table.params.read_length as usize;
+        let slen = table.len_by_idx(sidx).ok().expect("read sequence length") as i32;
         let mut rdr = table.get_sequence_by_idx(sidx).ok().expect("read sequence");
 
         loop {
@@ -73,24 +74,27 @@ impl PileUp {
             // if not count position
             if let Some(Ok(record)) = bamrecs.next() {
                 if checker.valid(&record) {
-                    let (plus_idx, minus_idx) = rdr.vir_get(checker.vir_pos(&record)).unwrap();
-                    
-                    if record.is_reverse() {
-                        if minus_idx == 0 {
-                            /* no data */
+                    let pos = checker.vir_pos(&record);
+                    if pos < slen {
+                        let (plus_idx, minus_idx) = rdr.vir_get(pos).unwrap();
+                        
+                        if record.is_reverse() {
+                            if minus_idx == 0 {
+                                /* no data */
+                            } else {
+                                let inc = if self.no_scale { 1f64 } else { scale[minus_idx as usize].1 };
+                                let minus_pos = (checker.vir_pos(&record) + rlen as i32 - 1i32 + self.minus_shift) as u32;
+                                self.counts[sidx as usize].entry(minus_pos).or_insert((0f64, 0f64)).1 += inc;
+                            }
                         } else {
-                            let inc = if self.no_scale { 1f64 } else { scale[minus_idx as usize].1 };
-                            let minus_pos = (checker.vir_pos(&record) + rlen as i32 - 1i32 + self.minus_shift) as u32;
-                            self.counts[sidx as usize].entry(minus_pos).or_insert((0f64, 0f64)).1 += inc;
+                            if plus_idx == 0 {
+                                /* no data */
+                            } else {
+                                let inc = if self.no_scale { 1f64 } else { scale[plus_idx as usize].0 };
+                                self.counts[sidx as usize].entry(checker.vir_pos(&record) as u32).or_insert((0f64, 0f64)).0 += inc;
+                            }
                         }
-                    } else {
-                        if plus_idx == 0 {
-                            /* no data */
-                        } else {
-                            let inc = if self.no_scale { 1f64 } else { scale[plus_idx as usize].0 };
-                            self.counts[sidx as usize].entry(checker.vir_pos(&record) as u32).or_insert((0f64, 0f64)).0 += inc;
-                        }
-                    } 
+                    }
                 }
             } 
         }
