@@ -1,5 +1,5 @@
 // build.rs
-
+#[cfg(feature = "headers")]
 extern crate cheddar;
 extern crate rustc_version;
 
@@ -8,6 +8,7 @@ use std::io::{self, Write};
 use std::process::exit;
 
 fn main() {
+    #[cfg(feature = "headers")]
     cheddar::Cheddar::new().expect("could not read manifest")
         .module("c_api").expect("malformed module path")
         .run_build("target/include/seqoutbiaslib.h");
