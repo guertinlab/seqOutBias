@@ -19,6 +19,11 @@ bincode = "0.5"
 tempfile = "2.1"
 libc = "0.2"
 
+[dev-dependencies]
+assert_cmd = "0.10"
+tempdir = "0.3"
+fs_extra = "1.1"
+
 [features]
 default = []
 
