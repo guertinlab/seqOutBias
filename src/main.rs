@@ -170,7 +170,7 @@ fn main() {
     }
     
     // Check for main sequence commands
-    let mut run_tallymer = true;
+    let mut run_tallymer = !args.flag_tallymer.is_some();
     let mut run_seqtable = true;
     let mut run_scale = true;
     
@@ -217,6 +217,9 @@ fn main() {
         };
         println!("# tallymer produced/found {:}", path.to_str().unwrap());
         Some(path)
+    } else if let Some(path) = args.flag_tallymer {
+        println!("# using supplied tallymer file {:}", path);
+        Some(path.clone().into())
     } else { None };
     
     // phase 2 - seqtable
