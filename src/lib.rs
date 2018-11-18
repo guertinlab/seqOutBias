@@ -22,6 +22,9 @@ pub fn file_exists(filename: &str) -> bool {
 	}
 }
 
+// private modules
+mod randfile;
+
 // public modules
 pub mod tallyrun;
 pub mod tallyread;

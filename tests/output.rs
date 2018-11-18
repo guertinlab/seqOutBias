@@ -5,8 +5,7 @@ extern crate fs_extra;
 use fs_extra::dir::copy;
 use fs_extra::dir::CopyOptions;
 use std::path::PathBuf;
-use std::path::Path;
-use std::fs::{self, DirEntry};
+use std::fs;
 use assert_cmd::prelude::*;
 use std::process::Command;
 use tempdir::TempDir;
@@ -51,9 +50,9 @@ fn temporary_bw_files_are_removed() {
     
     
     // assert some files exist
-    let mut bwOut = src_path.clone();
-    bwOut.push("reads.bw");
-    assert!(bwOut.exists());
+    let mut bw_out = src_path.clone();
+    bw_out.push("reads.bw");
+    assert!(bw_out.exists());
     // reads.bw
 
     // assert some files are removed
