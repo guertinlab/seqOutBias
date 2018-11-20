@@ -4,11 +4,13 @@
 //!
 extern crate flate2;
 
+use std::env;
 use std::process::Command;
 use std::process::exit;
 use std::process::Stdio;
 use std::process::Child;
 use std::path::Path;
+use std::path::PathBuf;
 use std::ffi::OsString;
 use std::ffi::OsStr;
 use std::fs;
@@ -111,7 +113,7 @@ fn pipe_to_gzipped_file_or_exit(proc1: Result<Child>, output: &OsStr) {
 }
 
 /// Create tallymer based mapabillity file 
-fn tallymer_create(fasta: &str, readlen: u16, parts: u8, outfile: &OsStr) {
+fn tallymer_create(workdir: PathBuf, fasta: &str, readlen: u16, parts: u8, outfile: &OsStr) {
 	let sft_filename = create_suffixtree_filename(fasta);
 	let tidx_filename = create_tallymerindex_filename(fasta, readlen);
 	
@@ -120,6 +122,7 @@ fn tallymer_create(fasta: &str, readlen: u16, parts: u8, outfile: &OsStr) {
 	tmp.push(".suf"); // actually there are a bunch of files that must exist ...
 	if !file_exists(&tmp) {
 		let gt_proc = Command::new("gt")
+		    .current_dir(workdir.as_path())
 			.arg("suffixerator")
 			.arg("-dna")
 			.arg("-pl")
@@ -140,6 +143,7 @@ fn tallymer_create(fasta: &str, readlen: u16, parts: u8, outfile: &OsStr) {
 	
 	// create genome index
 	let gt_proc = Command::new("gt")
+		.current_dir(workdir.as_path())
 		.arg("tallymer")
 		.arg("mkindex")
 		.arg("-mersize")
@@ -158,6 +162,7 @@ fn tallymer_create(fasta: &str, readlen: u16, parts: u8, outfile: &OsStr) {
 	
 	// generate final file
 	let gt_proc = Command::new("gt")
+		.current_dir(workdir.as_path())
 		.arg("tallymer")
 		.arg("search")
 		.arg("-output")
@@ -185,7 +190,7 @@ fn tallymer_create(fasta: &str, readlen: u16, parts: u8, outfile: &OsStr) {
 ///
 /// The generated file will be compressed with gzip if the input fasta has an
 /// .gz extension.
-pub fn tallymer_createfile(fasta: &str, readlen: u16, parts: u8) -> OsString {
+pub fn tallymer_createfile(fasta: &str, readlen: u16, parts: u8, gtworkdir: Option<String>) -> OsString {
 	
 	// try to locate file
 	let mut output = create_output_filename(fasta, readlen);
@@ -202,7 +207,11 @@ pub fn tallymer_createfile(fasta: &str, readlen: u16, parts: u8) -> OsString {
 	
 	// not found, let's create one
 	println!("################### Creating mappability file using tallymer ###################");
-	tallymer_create(fasta, readlen, parts, &output);
+	let path = match gtworkdir {
+		Some(workdir) => PathBuf::from(workdir),
+		None => env::current_dir().expect("Current directory is invalid!")
+	};
+	tallymer_create(path, fasta, readlen, parts, &output);
 	println!("################################################################################");
 	
 	return output;

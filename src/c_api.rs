@@ -171,7 +171,7 @@ pub extern fn seqoutbias_generate_seqtbl(fasta_filename: *const libc::c_char, pa
   }
 
   let parts = 4; // default value
-  let path = tallyrun::tallymer_createfile(&fasta_filename, params.read_length, parts);
+  let path = tallyrun::tallymer_createfile(&fasta_filename, params.read_length, parts, None);
 
   // generate data
   fasta::process_fasta(&fasta_filename, &path, &params, &outfile);

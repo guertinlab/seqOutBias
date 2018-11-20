@@ -38,6 +38,7 @@ Options:
   --version             Show version.
   --kmer-size=<n>       Kmer size [default: 4].
   --tallymer=<file>     Unmappable positions file produced by tallymer (seq, pos).
+  --gt_workdir=<path>   Working directory for Genome Tools.
   --plus-offset=<p>     Cut-site offset on plus strand, eg. p=2 AA[A]A [default: 2].
   --minus-offset=<m>    Cut-site offset on minus strand, eg. Eg, m=2 A[A]AA [default: 2].
   --kmer-mask=<str>     String indicating relevant kmer positions and cut-site, eg. NNXXNNCXXXXNNXXNN.
@@ -68,6 +69,7 @@ struct Args {
     arg_bam_file: Option<Vec<String>>,
     flag_kmer_size: u8,
     flag_tallymer: Option<String>,
+    flag_gt_workdir: Option<String>,
     flag_plus_offset: u8,
     flag_minus_offset: u8,
     flag_kmer_mask: Option<String>,
@@ -211,9 +213,9 @@ fn main() {
         }
         
         let path = if args.cmd_tallymer {
-            tallyrun::tallymer_createfile(&args.arg_fasta_file, args.arg_read_size, args.flag_parts)
+            tallyrun::tallymer_createfile(&args.arg_fasta_file, args.arg_read_size, args.flag_parts, args.flag_gt_workdir)
         } else {
-            tallyrun::tallymer_createfile(&args.arg_fasta_file, args.flag_read_size, args.flag_parts)
+            tallyrun::tallymer_createfile(&args.arg_fasta_file, args.flag_read_size, args.flag_parts, args.flag_gt_workdir)
         };
         println!("# tallymer produced/found {:}", path.to_str().unwrap());
         Some(path)
