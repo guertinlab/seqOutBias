@@ -38,7 +38,7 @@ Options:
   --version             Show version.
   --kmer-size=<n>       Kmer size [default: 4].
   --tallymer=<file>     Unmappable positions file produced by tallymer (seq, pos).
-  --gt_workdir=<path>   Working directory for Genome Tools.
+  --gt-workdir=<path>   Working directory for Genome Tools.
   --plus-offset=<p>     Cut-site offset on plus strand, eg. p=2 AA[A]A [default: 2].
   --minus-offset=<m>    Cut-site offset on minus strand, eg. Eg, m=2 A[A]AA [default: 2].
   --kmer-mask=<str>     String indicating relevant kmer positions and cut-site, eg. NNXXNNCXXXXNNXXNN.

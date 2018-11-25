@@ -5,13 +5,12 @@ extern crate fs_extra;
 
 use fs_extra::dir::copy;
 use fs_extra::dir::CopyOptions;
+use fs_extra::file::move_file;
 use std::path::PathBuf;
 use std::fs;
 use assert_cmd::prelude::*;
 use std::process::Command;
 use tempdir::TempDir;
-use predicates::boolean::PredicateBooleanExt;
-use predicates::str::starts_with;
 
 fn get_test_folder() -> PathBuf {
     let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -110,4 +109,60 @@ fn supplied_tallymer_path_is_respected() {
     let mut bw_out = src_path.clone();
     bw_out.push("reads.bw");
     assert!(bw_out.exists());
+}
+
+fn file_exists_in_folder(filename: &str, path: &PathBuf) -> bool {
+    let mut file_path = path.clone();
+    file_path.push(filename);
+    return file_path.exists();
+}
+
+#[test]
+fn user_specified_genome_tools_working_directory() {
+    // setup two folders
+    // 1. folder containing refseq dataset and where genome tools will operate
+    let mut res = get_resource_folder();
+    res.push("base");
+    let parent = get_test_folder();
+    let gt_folder = TempDir::new_in(&parent, "test_gt").unwrap();
+    
+    {
+        let tmp_path = gt_folder.path();
+
+        let options = CopyOptions::new(); //Initialize default values for CopyOptions
+        copy(&res, tmp_path, &options).unwrap();
+    }
+    let mut gt_path = gt_folder.path().to_path_buf();
+    gt_path.push("base");
+
+    // 2. folder where main program will operate
+    let main_folder = TempDir::new_in(&parent, "test_main").unwrap();
+    let main_path = main_folder.path().to_path_buf();
+    let move_options = fs_extra::file::CopyOptions::new();
+    let mut bam_src = gt_path.clone();
+    bam_src.push("reads.bam");
+    let mut bam_tgt = main_path.clone();
+    bam_tgt.push("reads.bam");
+    move_file(bam_src, bam_tgt, &move_options).unwrap();
+
+    // execute command
+    let mut ref_path = gt_path.clone();
+    ref_path.push("ref2.fa");
+
+    let mut cmd = Command::main_binary().unwrap();
+    cmd.current_dir(&main_path)
+       .arg(ref_path)
+       .arg("reads.bam")
+       .arg("--read-size=5")
+       .arg("--skip-bed")
+       .arg(format!("--gt-workdir={}", gt_path.to_str().unwrap()))
+       .assert().success();
+    
+    // check that output files exist in the main directory
+    assert!(file_exists_in_folder("reads.bw", &main_path));
+    assert!(file_exists_in_folder("ref2.tal_5.gtTxt.gz", &main_path));
+
+    // check that genome tools temporary files do not exist in the main directory
+    assert!(!file_exists_in_folder("ref2.fa.sa", &main_path));
+    assert!(!file_exists_in_folder("ref2.sft.suf", &main_path));
 }
