@@ -1,6 +1,6 @@
 BSD 3-Clause License
 
-Copyright (c) 2015-2017, The University of Virginia
+Copyright (c) 2015-2018, The University of Virginia
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
