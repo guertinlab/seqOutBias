@@ -421,7 +421,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "seqOutBias"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "assert_cmd 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bincode 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
