@@ -1,7 +1,7 @@
 #
 # Hill-Climbing Search
 #
-source("https://raw.githubusercontent.com/guertinlab/seqOutBias/master/docs/R/evalmask.R")
+source("https://raw.githubusercontent.com/guertinlab/seqOutBias/master/docs/R/seqOutBias_evalmask.R")
 require(parallel)
 
 #' Convert a mask in string form to a kmer-mask in integer form
