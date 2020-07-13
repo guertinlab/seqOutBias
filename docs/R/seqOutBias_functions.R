@@ -123,7 +123,7 @@ composites.func.panels.naked.chromatin <- function(dat, fact = 'Factor', summit 
                col = col.lines,
                auto.key = list(points=F, lines=T, cex=0.8),
                par.settings = list(superpose.symbol = list(pch = c(16), col=col.lines, cex =0.5), 
-                   superpose.line = list(col = col.lines, lwd=c(2,2,0.8,2,0.8,0.8,0.8), 
+                   superpose.line = list(col = col.lines, lwd=c(2,2,2,2,2,2,2), 
                        lty = c(1,1,1,1,1,1,1,1,1))),
                cex.axis=1.0,
                par.strip.text=list(cex=0.9, font=1, col='black'),
