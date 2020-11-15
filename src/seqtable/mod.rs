@@ -175,7 +175,7 @@ impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
           plus_values: VecDeque::new(),
           minus_values: VecDeque::new(),
           plus_skip: if plus_start > 0 { plus_start as u16 } else { 0 },
-          minus_skip: minus_start as u16,
+          minus_skip: if plus_start < 0 { minus_start as u16 - plus_start as u16 } else { minus_start as u16 },
           common_skip: common_skip as u16,
           unmap: unmap}
     }
