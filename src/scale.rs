@@ -32,6 +32,17 @@ pub struct PileUp {
     no_scale: bool,
 }
 
+pub fn reverse_complement(mer: u64, kmersize: u8) -> u64 {
+    let mut res = (!mer).wrapping_add(1);
+    res = (res >> 2 & 0x3333333333333333) | (res & 0x3333333333333333) << 2;
+    res = res >> 4 & 0xf0f0f0f0f0f0f0f | (res & 0xf0f0f0f0f0f0f0f) << 4;
+    res = res >> 8 & 0xff00ff00ff00ff | (res & 0xff00ff00ff00ff) << 8;
+    res = res >> 16 & 0xffff0000ffff | (res & 0xffff0000ffff) << 16;
+    res = res >> 32 & 0xffffffff | (res & 0xffffffff) << 32;
+    res = (res >> 2 * (32 - kmersize)).wrapping_add(1);
+    return res;
+}
+
 impl PileUp {
     
     fn new(sinfos: &Vec<SequenceInfo>, minus_shift: i32, no_scale: bool) -> PileUp {
@@ -60,6 +71,7 @@ impl PileUp {
         
         let sidx = map[*tid as usize];
         let rlen = table.params.read_length as usize;
+	let ksze = table.params.kmer_length as u8;
         let slen = table.len_by_idx(sidx).ok().expect("read sequence length") as i32;
         let mut rdr = table.get_sequence_by_idx(sidx).ok().expect("read sequence");
 
@@ -82,7 +94,7 @@ impl PileUp {
                             if minus_idx == 0 {
                                 /* no data */
                             } else {
-                                let inc = if self.no_scale { 1f64 } else { scale[minus_idx as usize].1 };
+                                let inc = if self.no_scale { 1f64 } else { scale[reverse_complement(minus_idx as u64, ksze) as usize].1 };
                                 let minus_pos = (checker.vir_pos(&record) + rlen as i32 - 1i32 + self.minus_shift) as u32;
                                 self.counts[sidx as usize].entry(minus_pos).or_insert((0f64, 0f64)).1 += inc;
                             }
