@@ -164,6 +164,13 @@ fn process_sequence<R1: Read, R2: BufRead, T:EnzContext>(seqwrt: SequenceWriter<
     State::End
 }
 
+pub fn reverse_complement(mer: u32, kmersize: u8) -> u32 {
+    if mer == 0 {
+        return 0;
+    }
+    return 4u32.pow( kmersize as u32 ) + 1 - mer;
+}
+
 /// Read FASTA file and produce SeqTable file
 fn generate_seqtable_ctxt<R1: Read, R2: BufRead, T: EnzContext>(fasta: R1, tallymer: R2, params: &SeqTableParams, mut enzctxt: T, outfile: &str) {
 	let mut unmap = UnMap::open(tallymer).ok().expect("Load mappability information");

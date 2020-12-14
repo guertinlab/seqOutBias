@@ -22,6 +22,7 @@ use seqtable::{SeqTableParams,SeqTable,SequenceInfo};
 use std::cmp::Ordering;
 use std::str;
 use filter::{RecordCheck, PairedChecker, SingleChecker};
+use fasta::reverse_complement;
 
 struct KeyIter<'a> {
     kmer: Vec<u8>,
@@ -193,21 +194,6 @@ impl Iterator for BedRanges {
   }
 }
 
-// based on https://www.biostars.org/p/113640/#424278
-pub fn reverse_complement(mer: u64, kmersize: u8) -> u64 {
-    let mut res = (!mer).wrapping_add(1);
-//    println!("mer '{}'", mer);
-//    println!("kmersize '{}'", kmersize);	
-    res = (res >> 2 & 0x3333333333333333) | (res & 0x3333333333333333) << 2;
-    res = res >> 4 & 0xf0f0f0f0f0f0f0f | (res & 0xf0f0f0f0f0f0f0f) << 4;
-    res = res >> 8 & 0xff00ff00ff00ff | (res & 0xff00ff00ff00ff) << 8;
-    res = res >> 16 & 0xffff0000ffff | (res & 0xffff0000ffff) << 16;
-    res = res >> 32 & 0xffffffff | (res & 0xffffffff) << 32;
-    res = (res >> 2 * (32 - kmersize)).wrapping_add(1);
-//    println!("RESULT '{}'", res);
-    return res;
-}
-
 fn process_bam_seq<R: ioRead+Seek, C: RecordCheck>(counts: &mut Vec<(u64, u64, u64, u64)>, table: &mut SeqTable<R>, bamrecs: &mut Peekable<Records<Reader>>, tid: &mut i32, map: &Vec<usize>, checker: &C, regions: Option<&BedRanges>) -> bool {
     // skip unmapped sequences (tid = -1)
     if *tid < 0 {
@@ -221,7 +207,7 @@ fn process_bam_seq<R: ioRead+Seek, C: RecordCheck>(counts: &mut Vec<(u64, u64, u
     let chrom_idx = map[*tid as usize];
     let len_idx = table.len_by_idx(chrom_idx).ok().expect("read sequence length") as i32;
     // added this kmersize for bit sliding 
-    let ksze = table.params.kmer_length as u8;
+    let ksze = table.params.kmer_length;
     let mut rdr = table.get_sequence_by_idx(chrom_idx).ok().expect("read sequence");
     
     loop {
@@ -250,7 +236,7 @@ fn process_bam_seq<R: ioRead+Seek, C: RecordCheck>(counts: &mut Vec<(u64, u64, u
                     
                     if record.is_reverse() {
 		    // reverse complement here
-                        counts[reverse_complement(pair.1 as u64, ksze) as usize].3 += 1;
+                        counts[reverse_complement(pair.1, ksze) as usize].3 += 1;
                     } else {
                         counts[pair.0 as usize].2 += 1;
                     } 
