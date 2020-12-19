@@ -84,7 +84,7 @@ impl PileUp {
                             if minus_idx == 0 {
                                 /* no data */
                             } else {
-                                let inc = if self.no_scale { 1f64 } else { scale[reverse_complement(minus_idx, ksze) as usize].1 };
+                                let inc = if self.no_scale { 1f64 } else { scale[minus_idx as usize].1 };
                                 let minus_pos = (checker.vir_pos(&record) + rlen as i32 - 1i32 + self.minus_shift) as u32;
                                 self.counts[sidx as usize].entry(minus_pos).or_insert((0f64, 0f64)).1 += inc;
                             }
