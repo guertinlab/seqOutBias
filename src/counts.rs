@@ -236,7 +236,7 @@ fn process_bam_seq<R: ioRead+Seek, C: RecordCheck>(counts: &mut Vec<(u64, u64, u
                     
                     if record.is_reverse() {
 		    // reverse complement here
-                        counts[reverse_complement(pair.1, ksze) as usize].3 += 1;
+                        counts[pair.1 as usize].3 += 1;
                     } else {
                         counts[pair.0 as usize].2 += 1;
                     } 
