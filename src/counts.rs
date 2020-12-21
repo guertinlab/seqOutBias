@@ -207,7 +207,6 @@ fn process_bam_seq<R: ioRead+Seek, C: RecordCheck>(counts: &mut Vec<(u64, u64, u
     let chrom_idx = map[*tid as usize];
     let len_idx = table.len_by_idx(chrom_idx).ok().expect("read sequence length") as i32;
     // added this kmersize for bit sliding 
-    let ksze = table.params.unmasked_count;
     let mut rdr = table.get_sequence_by_idx(chrom_idx).ok().expect("read sequence");
     
     loop {

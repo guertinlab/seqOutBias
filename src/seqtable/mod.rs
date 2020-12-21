@@ -122,12 +122,14 @@ pub use self::read::SeqTable;
 pub use self::read::SequenceInfo;
 pub use self::dump::dump_seqtable;
 pub use self::dump::dump_seqtable_range;
+use fasta::reverse_complement;
 
 /// This buffer is used to translate between coordinate systems
 /// Maps the n-mer table index values from the FASTA scan coordinates
 /// to aligned read start coordinates.
 pub struct SeqBuffer<'a, S: SeqStore, R: 'a + BufRead> {
     store: S,
+    kmer_size: u8,
     position: u32,
     written: u32, // TODO: consider storing this on SeqStore, i.e., add a method fn count(&self) -> u32
     plus_values: VecDeque<u32>,
@@ -170,6 +172,7 @@ impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
         //
         SeqBuffer { 
           store: store,
+          kmer_size: params.unmasked_count,
           position: 0,
           written: written,
           plus_values: VecDeque::new(),
@@ -185,7 +188,7 @@ impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
       let UnMapPosition{ plus: unmap_plus, minus: unmap_minus } = self.unmap.is_unmappable(self.written);
             
       let idx_plus = if unmap_plus { 0 } else { plus_value };
-      let idx_minus = if unmap_minus { 0 } else { minus_value };
+      let idx_minus = if unmap_minus { 0 } else { reverse_complement( minus_value, self.kmer_size ) };
       
       self.store.write(idx_plus, idx_minus);
       self.written += 1;

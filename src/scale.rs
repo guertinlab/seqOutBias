@@ -61,7 +61,6 @@ impl PileUp {
         
         let sidx = map[*tid as usize];
         let rlen = table.params.read_length as usize;
-        let ksze = table.params.unmasked_count;
         let slen = table.len_by_idx(sidx).ok().expect("read sequence length") as i32;
         let mut rdr = table.get_sequence_by_idx(sidx).ok().expect("read sequence");
 
