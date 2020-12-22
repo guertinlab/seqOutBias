@@ -42,6 +42,8 @@ Options:
   --plus-offset=<p>     Cut-site offset on plus strand, eg. p=2 AA[A]A [default: 2].
   --minus-offset=<m>    Cut-site offset on minus strand, eg. Eg, m=2 A[A]AA [default: 2].
   --kmer-mask=<str>     String indicating relevant kmer positions and cut-site, eg. NNXXNNCXXXXNNXXNN.
+  --strand-specific     kmer is considered strand specific, i.e., it is flipped for the minus strand.
+                        In this case, the minus-offset has no effect.
   --read-size=<r>       Read length [default: 36].
   --parts=<n>           Split suffix tree generation into n parts [default: 4].
   --qual=<q>            Minimum read quality [default: 0].
@@ -90,6 +92,7 @@ struct Args {
     flag_only_paired: bool,
     flag_exact_length: bool,
     flag_tail_edge: bool,
+    flag_strand_specific: bool,
     cmd_tallymer: bool,
     cmd_seqtable: bool,
     cmd_dump: bool,
@@ -236,7 +239,8 @@ fn main() {
             args.flag_plus_offset,
             args.flag_minus_offset,
             args.flag_read_size,
-            &args.flag_kmer_mask);
+            &args.flag_kmer_mask,
+            args.flag_strand_specific);
         
         println!("# kmer-size: {}", seq_params.kmer_length);
         println!("# plus-offset: {}", seq_params.plus_offset);

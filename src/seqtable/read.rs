@@ -46,6 +46,7 @@ impl<R: Read + Seek> SeqTable<R> {
         let po = try!(reader.read_u8());
         let mo = try!(reader.read_u8());
         let rl = try!(reader.read_u16::<LittleEndian>());
+        let ss = try!(reader.read_u8()) == 1;
         // load mask if needed
         let mask = if uc < cl {
             let mut res = Vec::new();
@@ -65,6 +66,7 @@ impl<R: Read + Seek> SeqTable<R> {
             read_length: rl,
             mask: mask,
             unmasked_count: uc,
+            strand_specific: ss,
         };
          
         // load block size

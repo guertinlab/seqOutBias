@@ -9,7 +9,7 @@ use std::io::BufRead;
 use std::fs::File;
 use std::cmp;
 
-const TBL_VERSION : u8 = 4u8;
+const TBL_VERSION : u8 = 5u8;
 
 #[derive(Clone, Debug)]
 pub struct SeqTableParams {
@@ -20,10 +20,12 @@ pub struct SeqTableParams {
   // masked n-mers
   pub mask: Option<Vec<bool>>,
   pub unmasked_count: u8,
+  // strand_specific enzymes - mask is flipped on minus strand
+  pub strand_specific: bool,
 }
 
 impl SeqTableParams {
-  pub fn new(mut kmer_length: u8, mut plus_offset: u8, mut minus_offset: u8, read_length: u16, mask: &Option<String>) -> Self {
+  pub fn new(mut kmer_length: u8, mut plus_offset: u8, mut minus_offset: u8, read_length: u16, mask: &Option<String>, strand_specific: bool) -> Self {
     match *mask {
       Some(ref maskstr) => {
         let uc_mask = maskstr.to_uppercase();
@@ -45,6 +47,7 @@ impl SeqTableParams {
           read_length: read_length,
           mask: if bcount < bmask.len() as u8 { Some(bmask) } else { None },
           unmasked_count:  bcount,
+          strand_specific: strand_specific,
         }
       },
       None =>
@@ -55,6 +58,7 @@ impl SeqTableParams {
           read_length: read_length,
           mask: None,
           unmasked_count: kmer_length,
+          strand_specific: strand_specific,
         },
     }
   }
@@ -188,7 +192,7 @@ impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
       let UnMapPosition{ plus: unmap_plus, minus: unmap_minus } = self.unmap.is_unmappable(self.written);
             
       let idx_plus = if unmap_plus { 0 } else { plus_value };
-      let idx_minus = if unmap_minus { 0 } else { reverse_complement( minus_value, self.kmer_size ) };
+      let idx_minus = if unmap_minus { 0 } else { minus_value };
       
       self.store.write(idx_plus, idx_minus);
       self.written += 1;

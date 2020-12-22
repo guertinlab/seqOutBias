@@ -39,7 +39,7 @@ impl Deref for SeqTblParams {
 /// Free memory using seqoutbias_free_params().
 /// Returns NULL if the mask is invalid.
 #[no_mangle]
-pub extern fn seqoutbias_params_with_mask(kmer_mask: *const libc::c_char, plus_offset: u8, minus_offset: u8, read_length: u16) -> *mut SeqTblParams {
+pub extern fn seqoutbias_params_with_mask(kmer_mask: *const libc::c_char, plus_offset: u8, minus_offset: u8, read_length: u16, strand_specific: bool) -> *mut SeqTblParams {
   let kmer_mask = unsafe {
     assert!(!kmer_mask.is_null());
     CStr::from_ptr(kmer_mask).to_string_lossy().into_owned()
@@ -57,7 +57,8 @@ pub extern fn seqoutbias_params_with_mask(kmer_mask: *const libc::c_char, plus_o
             plus_offset,
             minus_offset,
             read_length,
-            &mask);
+            &mask,
+            strand_specific);
   
   Box::into_raw(Box::new(SeqTblParams(params)))
 }
@@ -65,13 +66,14 @@ pub extern fn seqoutbias_params_with_mask(kmer_mask: *const libc::c_char, plus_o
 /// Create a instance of SeqTblParams, with no kmer-mask, to configure the generation of the seqtbl file.
 /// Free memory using seqoutbias_free_params().
 #[no_mangle]
-pub extern fn seqoutbias_params(kmer_size: u8, plus_offset: u8, minus_offset: u8, read_length: u16) -> *mut SeqTblParams {
+pub extern fn seqoutbias_params(kmer_size: u8, plus_offset: u8, minus_offset: u8, read_length: u16, strand_specific: bool) -> *mut SeqTblParams {
   let params = seqtable::SeqTableParams::new(
             kmer_size,
             plus_offset,
             minus_offset,
             read_length,
-            &None);
+            &None,
+            strand_specific);
   
   Box::into_raw(Box::new(SeqTblParams(params)))
 }
