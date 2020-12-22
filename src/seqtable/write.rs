@@ -52,6 +52,7 @@ impl<W: Write + Seek> SeqTableWriter<W> {
         try!(writer.write_u8(params.plus_offset));  
         try!(writer.write_u8(params.minus_offset));
         try!(writer.write_u16::<LittleEndian>(params.read_length));
+        try!(writer.write_u8( if params.strand_specific { 1u8 } else { 0u8 }));
         // write mask if present
         if let Some(ref mask) = params.mask {
             for &flag in mask.iter() {
@@ -74,7 +75,7 @@ impl<W: Write + Seek> SeqTableWriter<W> {
         try!(writer.write_u64::<LittleEndian>(0));
         
         //
-        let hoffset = 5 * size_of::<u8>() + size_of::<u16>() + if params.mask.is_some() { params.kmer_length as usize * size_of::<u8>() } else { 0 } + size_of::<u32>();
+        let hoffset = 6 * size_of::<u8>() + size_of::<u16>() + if params.mask.is_some() { params.kmer_length as usize * size_of::<u8>() } else { 0 } + size_of::<u32>();
         let toffset = hoffset + 3 * size_of::<u64>();
         
         // allocate counts table

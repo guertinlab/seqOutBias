@@ -18,6 +18,7 @@ fn dump_header<R: Read + Seek>(table: &SeqTable<R>) {
     if let Some(ref mask) = params.mask {
         println!("# kmer-mask: {}", mask.iter().map(|&flag| if flag { 'N' } else { 'X' } ).collect::<String>());
     };
+    println!("# strand-specific: {}", params.strand_specific);
 }
 
 /// range can take the form: <chrom>:<start>-<end> or just <chrom>
