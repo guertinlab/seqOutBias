@@ -43,7 +43,7 @@ Options:
   --minus-offset=<m>    Cut-site offset on minus strand, eg. Eg, m=2 A[A]AA [default: 2].
   --kmer-mask=<str>     String indicating relevant kmer positions and cut-site, eg. NNXXNNCXXXXNNXXNN.
   --strand-specific     kmer is considered strand specific, i.e., it is flipped for the minus strand.
-                        In this case, the minus-offset has no effect.
+                        In this case, the minus-offset must be identical to the plus-offset.
   --read-size=<r>       Read length [default: 36].
   --parts=<n>           Split suffix tree generation into n parts [default: 4].
   --qual=<q>            Minimum read quality [default: 0].
@@ -232,6 +232,11 @@ fn main() {
 
         if let Some(ref mask) = args.flag_kmer_mask {
             validate_mask(mask);
+        }
+
+        if args.flag_strand_specific && args.flag_plus_offset != args.flag_minus_offset {
+            println!("Error: When '--strand-specific' is active the plus and minus offsets must be identical.");
+            exit(1);
         }
 
         let seq_params = seqtable::SeqTableParams::new(

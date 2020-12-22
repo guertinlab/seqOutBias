@@ -32,7 +32,11 @@ impl SeqTableParams {
         if let Some(idx) = uc_mask.find('C') {
           kmer_length = uc_mask.len() as u8 - 1;
           plus_offset = idx as u8;
-          minus_offset = kmer_length - (idx as u8);
+          if strand_specific {
+            minus_offset = idx as u8;
+          } else {
+            minus_offset = kmer_length - (idx as u8);
+          }
         } else {
           kmer_length = uc_mask.len() as u8;
         }
@@ -145,7 +149,6 @@ pub struct SeqBuffer<'a, S: SeqStore, R: 'a + BufRead> {
 }
 
 impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
-    
     /// Create new sequence buffer which will store values into the supplied SeqStore instance
     pub fn new(mut store: S, params: &SeqTableParams, unmap: &'a UnMap<R>) -> SeqBuffer<'a, S,R> {
         // Skipping
@@ -182,9 +185,10 @@ impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
           plus_values: VecDeque::new(),
           minus_values: VecDeque::new(),
           plus_skip: if plus_start > 0 { plus_start as u16 } else { 0 },
-          minus_skip: if plus_start < 0 { minus_start as u16 - plus_start as u16 } else { minus_start as u16 },
+          minus_skip: if plus_start < 0 { ( minus_start - plus_start ) as u16 } else { minus_start as u16 },
           common_skip: common_skip as u16,
-          unmap: unmap}
+          unmap: unmap
+        }
     }
     
     // Write values into underlying SeqStore, masking unmappable positions
@@ -199,7 +203,7 @@ impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
     }
     
     /// Push a new n-mer table index into buffer
-    pub fn push(&mut self, table_index: u32) {
+    pub fn push(&mut self, table_index_plus: u32, table_index_minus: u32) {
       if self.common_skip > 0 {
         self.common_skip -= 1;
         self.plus_skip -= 1;
@@ -208,26 +212,26 @@ impl<'a, S: SeqStore, R: BufRead> SeqBuffer<'a, S, R> {
         if self.plus_skip == 0 && self.minus_skip == 0 {
           // obtain plus strand value at current position
           let plus_value = if self.plus_values.len() > 0 {
-            self.plus_values.push_front(table_index);
+            self.plus_values.push_front(table_index_plus);
             self.plus_values.pop_back().unwrap()
-          } else { table_index };
+          } else { table_index_plus };
           
           // obtain minus strand value at current position
           let minus_value = if self.minus_values.len() > 0 {
-            self.minus_values.push_front(table_index);
+            self.minus_values.push_front(table_index_minus);
             self.minus_values.pop_back().unwrap()
-          } else { table_index };
+          } else { table_index_minus };
           
           // write pairs to store
           self.write(plus_value, minus_value);
         } else {
           // Store values until the remaining strand has caught up
           if self.minus_skip > 0 {
-            self.plus_values.push_front(table_index);
+            self.plus_values.push_front(table_index_plus);
             self.minus_skip -= 1;
           }
           if self.plus_skip > 0 {
-            self.minus_values.push_front(table_index);
+            self.minus_values.push_front(table_index_minus);
             self.plus_skip -= 1;
           }
         }
