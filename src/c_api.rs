@@ -122,6 +122,12 @@ pub struct Config {
   tail_edge: bool,
   /// Shift minus strand counts
   shift_counts: bool,
+  /// Apply a custom shift to each strand
+  custom_shift: bool,
+  /// Custom shift amount for plus strand
+  custom_shift_plus: i32,
+  /// Custom shift amount for minus strand
+  custom_shift_minus: i32,
   /// If false, pileUp represents unscaled counts
   scale_pileup: bool,
 }
@@ -139,6 +145,9 @@ pub extern fn seqoutbias_default_config() -> Config {
     exact_length: false,
     tail_edge: false,
     shift_counts: false,
+    custom_shift: false,
+    custom_shift_plus: 0,
+    custom_shift_minus: 0,
     scale_pileup: true,
   }
 }
@@ -217,6 +226,13 @@ pub extern fn seqoutbias_create_pileup(seqtable_filename: *const libc::c_char, b
     config.tail_edge
   );
 
+  // Custom shift amount
+  let custom_shift = if config.custom_shift {
+    Some((config.custom_shift_plus, config.custom_shift_minus))
+  } else {
+    None
+  };
+
   // compute pileup
   let pileup = scale::scale(
     &seqtable_filename, 
@@ -224,6 +240,7 @@ pub extern fn seqoutbias_create_pileup(seqtable_filename: *const libc::c_char, b
     &bams, 
     config.min_qual,
     config.shift_counts,
+    &custom_shift,
     !config.scale_pileup,
     &dist_range,
     config.only_paired,

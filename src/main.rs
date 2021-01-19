@@ -55,6 +55,7 @@ Options:
   --skip-bw             Skip creating the BigWig file output.
   --stranded            Output per strand counts when writting scaled values.
   --shift-counts        Shift minus strand counts.
+  --custom-shift=<plus,minus> Shift strand counts by specified amounts (defaults to no shift)
   --no-scale            Skip actual scalling in 'scale' command.
   --pdist=<min:max>     Distance range for included paired reads.
   --only-paired         Only accept aligned reads that have a mapped pair.
@@ -87,6 +88,7 @@ struct Args {
     flag_bw: Option<String>,
     flag_skip_bw: bool,
     flag_shift_counts: bool,
+    flag_custom_shift: Option<String>,
     flag_no_scale: bool,
     flag_pdist: Option<String>,
     flag_only_paired: bool,
@@ -115,6 +117,18 @@ fn parse_range(range: &str) -> (i32, i32) {
         exit(1);
     }
     (min_val.unwrap(),max_val.unwrap())
+}
+
+fn parse_amounts(amounts: &str) -> (i32, i32) {
+    let parts: Vec<&str> = amounts.split(',').collect();
+
+    if parts.len() != 2 {
+        println!("Invalid shift amounts: {}", amounts);
+        exit(1);
+    }
+    let plus_val = parts[0].parse::<i32>().expect( "Integer shift amount" );
+    let minus_val = parts[1].parse::<i32>().expect( "Integer shift amount" );
+    return (plus_val, minus_val)
 }
 
 fn stem_filename(stem_src: &str, suffix: &str, out_arg: Option<String>) -> String {
@@ -151,6 +165,16 @@ fn main() {
     
     let dist_range = match args.flag_pdist {
         Some(range) => Some(parse_range(&range)),
+        None => None
+    };
+
+    if args.flag_custom_shift.is_some() && args.flag_shift_counts {
+        println!("--custom-shift and --shift-counts cannot be used together");
+        exit(1);
+    }
+
+    let shift_amounts = match args.flag_custom_shift {
+        Some(amounts) => Some(parse_amounts(&amounts)),
         None => None
     };
     
@@ -290,7 +314,7 @@ fn main() {
         
         let bamfile = args.arg_bam_file.as_ref().unwrap()[0].clone(); // use the first name for reference
         let counts = counts::tabulate(&seqtable_file, args.arg_bam_file.as_ref(), args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired, args.flag_exact_length, args.flag_tail_edge);
-        let pileup = scale::scale(&seqtable_file, counts, args.arg_bam_file.as_ref().unwrap(), args.flag_qual, args.flag_shift_counts, args.flag_no_scale, &dist_range, args.flag_only_paired, args.flag_exact_length, args.flag_tail_edge);
+        let pileup = scale::scale(&seqtable_file, counts, args.arg_bam_file.as_ref().unwrap(), args.flag_qual, args.flag_shift_counts, &shift_amounts, args.flag_no_scale, &dist_range, args.flag_only_paired, args.flag_exact_length, args.flag_tail_edge);
         
         if !args.flag_skip_bed {
             let outfile_bed = if args.flag_no_scale {
