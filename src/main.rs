@@ -3,6 +3,8 @@
 extern crate seqoutbiaslib;
 extern crate rustc_serialize;
 extern crate docopt;
+extern crate profile;
+extern crate toml;
 
 use seqoutbiaslib::tallyrun;
 use seqoutbiaslib::seqtable;
@@ -17,6 +19,9 @@ use std::error::Error;
 use std::path::Path;
 use std::fs::File;
 use seqoutbiaslib::seqtable::SeqTable;
+use profile::Profile;
+use toml::Value;
+use std::io::Read;
 
 /* Main usage/arguments */
 
@@ -34,36 +39,37 @@ Usage:
   seqOutBias --version
 
 Options:
-  -h --help             Show this screen.
-  --version             Show version.
-  --kmer-size=<n>       Kmer size [default: 4].
-  --tallymer=<file>     Unmappable positions file produced by tallymer (seq, pos).
-  --gt-workdir=<path>   Working directory for Genome Tools.
-  --plus-offset=<p>     Cut-site offset on plus strand, eg. p=2 AA[A]A [default: 2].
-  --minus-offset=<m>    Cut-site offset on minus strand, eg. Eg, m=2 A[A]AA [default: 2].
-  --kmer-mask=<str>     String indicating relevant kmer positions and cut-site, eg. NNXXNNCXXXXNNXXNN.
-  --strand-specific     kmer is considered strand specific, i.e., it is flipped for the minus strand.
-                        In this case, the minus-offset must be identical to the plus-offset.
-  --read-size=<r>       Read length [default: 36].
-  --parts=<n>           Split suffix tree generation into n parts [default: 4].
-  --qual=<q>            Minimum read quality [default: 0].
-  --regions=<bedfile>   Count only cut-sites inside the regions indicated in the BED file.
-  --out=<outfile>       Output seqtable filename (defaults to fasta file basename with .tbl extension).
-  --bed=<bedfile>       Output scaled BED filename (defaults to BAM file basename with '_scaled.bed' extension).
-  --skip-bed            Skip creating the BED file output.
-  --bw=<bigwigfile>     Output scaled BigWig filename (defaults to BAM file basename with .bw extension).
-  --skip-bw             Skip creating the BigWig file output.
-  --stranded            Output per strand counts when writting scaled values.
-  --shift-counts        Shift minus strand counts.
-  --custom-shift=<plus,minus> Shift strand counts by specified amounts (defaults to no shift)
-  --no-scale            Skip actual scalling in 'scale' command.
-  --pdist=<min:max>     Distance range for included paired reads.
-  --only-paired         Only accept aligned reads that have a mapped pair.
-  --exact-length        Only accept BAM reads with length equal to 'read-size'.
-  --tail-edge           Use tail edge of reads (3') instead of start edge (5').
+  -h --help                    Show this screen.
+  --version                    Show version.
+  --kmer-size=<n>              Kmer size [default: 4].
+  --tallymer=<file>            Unmappable positions file produced by tallymer (seq, pos).
+  --gt-workdir=<path>          Working directory for Genome Tools.
+  --plus-offset=<p>            Cut-site offset on plus strand, eg. p=2 AA[A]A [default: 2].
+  --minus-offset=<m>           Cut-site offset on minus strand, eg. Eg, m=2 A[A]AA [default: 2].
+  --kmer-mask=<str>            String indicating relevant kmer positions and cut-site, eg. NNXXNNCXXXXNNXXNN.
+  --strand-specific            kmer is considered strand specific, i.e., it is flipped for the minus strand.
+                               In this case, the minus-offset must be identical to the plus-offset.
+  --read-size=<r>              Read length [default: 36].
+  --parts=<n>                  Split suffix tree generation into n parts [default: 4].
+  --qual=<q>                   Minimum read quality [default: 0].
+  --regions=<bedfile>          Count only cut-sites inside the regions indicated in the BED file.
+  --out=<outfile>              Output seqtable filename (defaults to fasta file basename with .tbl extension).
+  --bed=<bedfile>              Output scaled BED filename (defaults to BAM file basename with '_scaled.bed' extension).
+  --skip-bed                   Skip creating the BED file output.
+  --bw=<bigwigfile>            Output scaled BigWig filename (defaults to BAM file basename with .bw extension).
+  --skip-bw                    Skip creating the BigWig file output.
+  --stranded                   Output per strand counts when writting scaled values.
+  --shift-counts               Shift minus strand counts.
+  --custom-shift=<plus,minus>  Shift strand counts by specified amounts (defaults to no shift).
+  --no-scale                   Skip actual scalling in 'scale' command.
+  --pdist=<min:max>            Distance range for included paired reads.
+  --only-paired                Only accept aligned reads that have a mapped pair.
+  --exact-length               Only accept BAM reads with length equal to 'read-size'.
+  --tail-edge                  Use tail edge of reads (3') instead of start edge (5').
+  --profile=<file>             Apply options from profile file. These values take precedence over command line flags.
 ";
 
-#[derive(Debug, RustcDecodable)]
+#[derive(Debug, RustcDecodable, Profile)]
 struct Args {
     arg_fasta_file: String,
     arg_read_size: u16,
@@ -95,6 +101,7 @@ struct Args {
     flag_exact_length: bool,
     flag_tail_edge: bool,
     flag_strand_specific: bool,
+    flag_profile: Option<String>,
     cmd_tallymer: bool,
     cmd_seqtable: bool,
     cmd_dump: bool,
@@ -151,9 +158,21 @@ fn validate_mask(mask: &str) {
 
 fn main() {
     // Parse command line arguments
-    let args: Args = Docopt::new(USAGE)
+    let mut args: Args = Docopt::new(USAGE)
                             .and_then(|d| d.decode())
                             .unwrap_or_else(|e| e.exit());
+
+    // Apply profile over args
+    if args.flag_profile.is_some() {
+        let profile_filename = args.flag_profile.as_ref().unwrap();
+        println!("# Profile file: {}", profile_filename );
+        let mut file = File::open(profile_filename).expect("Failed to open profile file." );
+        let mut string = String::with_capacity(file.metadata().map(|m| m.len() as usize + 1).unwrap_or(0) );
+        file.read_to_string(&mut string).expect( "Failed to read profile file." );
+
+        let value = string.parse::<Value>().unwrap();
+        args.apply_profile(&value);
+    }
 
     if args.flag_version {
         println!("Cut-site frequencies, v{}.{}.{}", 

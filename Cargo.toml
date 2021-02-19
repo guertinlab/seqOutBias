@@ -1,6 +1,6 @@
 [package]
 name = "seqOutBias"
-version = "1.2.0"
+version = "1.3.0"
 authors = ["André Martins <alm253@cornell.edu>"]
 build = "build.rs"
 
@@ -8,6 +8,8 @@ build = "build.rs"
 name = "seqoutbiaslib"
 path = "src/lib.rs"
 crate-type = ["rlib","cdylib"]
+
+[workspace]
 
 [dependencies]
 docopt = "0.6"
@@ -19,6 +21,8 @@ bincode = "0.5"
 tempfile = "2.1"
 libc = "0.2"
 rand = "0.4"
+toml = "0.5"
+profile = { path = "profile" }
 
 [dev-dependencies]
 assert_cmd = "0.4"

@@ -1,0 +1,14 @@
+[package]
+name = "profile"
+version = "1.0.0"
+authors = ["André Martins <alm253@cornell.edu>"]
+
+[lib]
+proc-macro = true
+path = "profile.rs"
+
+[dependencies]
+darling = "0.12"
+proc-macro2 = "1"
+quote = "1.0"
+syn = { version = "1.0", features = ["full"] }
