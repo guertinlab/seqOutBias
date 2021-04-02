@@ -35,8 +35,8 @@ default = []
 
 # this feature enables the generation of the C header file for the C API
 # you may need to downgrade the compiler version to version 1.18.
-headers = ["rusty-cheddar"]
+headers = ["cbindgen"]
 
 [build-dependencies]
-rusty-cheddar = { version = "0.3", optional = true }
+cbindgen = { version = "0.18", optional = true }
 rustc_version = "0.1"
