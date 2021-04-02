@@ -34,9 +34,8 @@ fs_extra = "1.1"
 default = []
 
 # this feature enables the generation of the C header file for the C API
-# you may need to downgrade the compiler version to version 1.18.
 headers = ["cbindgen"]
 
 [build-dependencies]
-cbindgen = { version = "0.18", optional = true }
+cbindgen = { version = "0.13", optional = true }
 rustc_version = "0.1"

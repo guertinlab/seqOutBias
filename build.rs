@@ -38,8 +38,8 @@ fn main() {
     }
 
     // Check for a minimum version
-    if !version_matches(">= 1.11.0") {
-        writeln!(&mut io::stderr(), "This crate requires rustc >= 1.11.0.").unwrap();
+    if !version_matches(">= 1.32.0") {
+        writeln!(&mut io::stderr(), "This crate requires rustc >= 1.32.0.").unwrap();
         exit(1);
     }
 }
