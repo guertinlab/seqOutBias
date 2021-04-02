@@ -164,7 +164,7 @@ fn main() {
 
     // Apply profile over args
     if args.flag_profile.is_some() {
-        let profile_filename = args.flag_profile.as_ref().unwrap();
+        let profile_filename = args.flag_profile.as_ref().unwrap().clone();
         println!("# Profile file: {}", profile_filename );
         let mut file = File::open(profile_filename).expect("Failed to open profile file." );
         let mut string = String::with_capacity(file.metadata().map(|m| m.len() as usize + 1).unwrap_or(0) );

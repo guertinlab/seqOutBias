@@ -22,7 +22,6 @@ use std::collections::btree_map::Iter;
 use bigwig::write_bigwig;
 use bigwig::Strand;
 use filter::{RecordCheck, PairedChecker, SingleChecker};
-use fasta::reverse_complement;
 
 #[derive(Debug)]
 pub struct PileUp {
