@@ -39,7 +39,7 @@ impl ToTokens for Receiver {
     let ident = &self.ident;
     let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
     let fields = self.fields_to_emit();
-    let names: Vec<String> = fields.iter().map( |field| field.0[5..].to_string() ).collect();
+    let names: Vec<String> = fields.iter().map( |field| field.0[5..].replace('_', "-" ) ).collect();
     let fields_ident: Vec<Ident> = fields.iter().map( |field| Ident::from_string(&field.0).unwrap() ).collect();
     let accessors: Vec<TokenStream> = fields
       .iter()
