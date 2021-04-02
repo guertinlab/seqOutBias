@@ -12,7 +12,7 @@ reuses intermediate results as much as possible.
 # Requirements
 
 - Platform: OS X or Linux
-- Compiler: **rust >= 1.18.0** + cargo ( [http://www.rust-lang.org](http://www.rust-lang.org) )
+- Compiler: **rust >= 1.32.0** + cargo ( [http://www.rust-lang.org](http://www.rust-lang.org) )
 - Genome tools ( [http://genometools.org](http://genometools.org) )
 - wigToBigWig ( [UCSC Git Repository](http://genome.ucsc.edu/admin/git.html) or [Precompiled binaries](http://hgdownload.cse.ucsc.edu/admin/exe/) )
 
