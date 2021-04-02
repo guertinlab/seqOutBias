@@ -22,7 +22,6 @@ use seqtable::{SeqTableParams,SeqTable,SequenceInfo};
 use std::cmp::Ordering;
 use std::str;
 use filter::{RecordCheck, PairedChecker, SingleChecker};
-use fasta::reverse_complement;
 
 struct KeyIter<'a> {
     kmer: Vec<u8>,
