@@ -39,6 +39,12 @@ impl RecordCheck for SingleChecker {
     }
 }
 
+#[derive(Copy, Clone)]
+pub enum PairPosition {
+    First,
+    Last
+}
+
 pub struct PairedChecker {
     pub tail_edge: bool,
     pub exact_length: bool,
@@ -48,6 +54,7 @@ pub struct PairedChecker {
     pub max_dist: i32,
     pub force_paired: bool,
     pub max_distance: bool,
+    pub select_pair: Option<PairPosition>
 }
 
 impl RecordCheck for PairedChecker {
@@ -66,6 +73,24 @@ impl RecordCheck for PairedChecker {
             if dist < self.min_dist || dist > self.max_dist {
                 return false;
             }
+        }
+        // filter for specific pair in paired reads
+        match self.select_pair {
+            Some( side ) => {
+                match side {
+                    PairPosition::First => {
+                        if !record.is_first_in_template() {
+                            return false;
+                        }
+                    }
+                    PairPosition::Last => {
+                        if !record.is_last_in_template() {
+                            return false;
+                        }
+                    }
+                }
+            }
+            _ => {}
         }
         true
     }

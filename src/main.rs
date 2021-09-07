@@ -22,6 +22,7 @@ use seqoutbiaslib::seqtable::SeqTable;
 use profile::Profile;
 use toml::Value;
 use std::io::Read;
+use seqoutbiaslib::filter::PairPosition;
 
 /* Main usage/arguments */
 
@@ -55,15 +56,17 @@ Options:
   --regions=<bedfile>          Count only cut-sites inside the regions indicated in the BED file.
   --out=<outfile>              Output seqtable filename (defaults to fasta file basename with .tbl extension).
   --bed=<bedfile>              Output scaled BED filename (defaults to BAM file basename with '_scaled.bed' extension).
+  --bed-stranded-positive      BED written with stranded output have positive counts on both strands.
   --skip-bed                   Skip creating the BED file output.
   --bw=<bigwigfile>            Output scaled BigWig filename (defaults to BAM file basename with .bw extension).
   --skip-bw                    Skip creating the BigWig file output.
-  --stranded                   Output per strand counts when writting scaled values.
+  --stranded                   Output per strand counts when writing scaled values.
   --shift-counts               Shift minus strand counts.
   --custom-shift=<plus,minus>  Shift strand counts by specified amounts (defaults to no shift).
-  --no-scale                   Skip actual scalling in 'scale' command.
+  --no-scale                   Skip actual scaling in 'scale' command.
   --pdist=<min:max>            Distance range for included paired reads.
   --only-paired                Only accept aligned reads that have a mapped pair.
+  --out-split-pairends         Split output files by pair end (_PE1 and _PE2).
   --exact-length               Only accept BAM reads with length equal to 'read-size'.
   --tail-edge                  Use tail edge of reads (3') instead of start edge (5').
   --profile=<file>             Apply options from profile file. These values take precedence over command line flags.
@@ -90,6 +93,7 @@ struct Args {
     flag_out: Option<String>,
     flag_stranded: bool,
     flag_bed: Option<String>,
+    flag_bed_stranded_positive: bool,
     flag_skip_bed: bool,
     flag_bw: Option<String>,
     flag_skip_bw: bool,
@@ -98,6 +102,7 @@ struct Args {
     flag_no_scale: bool,
     flag_pdist: Option<String>,
     flag_only_paired: bool,
+    flag_out_split_pairends: bool,
     flag_exact_length: bool,
     flag_tail_edge: bool,
     flag_strand_specific: bool,
@@ -189,6 +194,21 @@ fn main() {
 
     if args.flag_custom_shift.is_some() && args.flag_shift_counts {
         println!("--custom-shift and --shift-counts cannot be used together");
+        exit(1);
+    }
+
+    if args.flag_out_split_pairends && args.flag_out.is_some() {
+        println!("--out-split-pairends and --out cannot be used together");
+        exit(1);
+    }
+
+    if args.flag_out_split_pairends && args.flag_bed.is_some() {
+        println!("--out-split-pairends and --bed cannot be used together");
+        exit(1);
+    }
+
+    if args.flag_out_split_pairends && !args.flag_only_paired {
+        println!("--out-split-pairends requires flag --only-paired");
         exit(1);
     }
 
@@ -333,44 +353,53 @@ fn main() {
         
         let bamfile = args.arg_bam_file.as_ref().unwrap()[0].clone(); // use the first name for reference
         let counts = counts::tabulate(&seqtable_file, args.arg_bam_file.as_ref(), args.flag_qual, args.flag_regions, dist_range, args.flag_only_paired, args.flag_exact_length, args.flag_tail_edge);
-        let pileup = scale::scale(&seqtable_file, counts, args.arg_bam_file.as_ref().unwrap(), args.flag_qual, args.flag_shift_counts, &shift_amounts, args.flag_no_scale, &dist_range, args.flag_only_paired, args.flag_exact_length, args.flag_tail_edge);
-        
-        if !args.flag_skip_bed {
-            let outfile_bed = if args.flag_no_scale {
-                    stem_filename(&bamfile, "_not_scaled.bed", args.flag_bed)
+
+        let pileup_variants = if args.flag_out_split_pairends {
+            vec![ ("_PE1", Some(PairPosition::First)), ("_PE2", Some(PairPosition::Last))]
+        } else {
+            vec![ ("", None)]
+        };
+
+        for ( suffix_prefix, select_pair) in pileup_variants {
+            let pileup = scale::scale(&seqtable_file, &counts, args.arg_bam_file.as_ref().unwrap(), args.flag_qual, args.flag_shift_counts, &shift_amounts, args.flag_no_scale, &dist_range, args.flag_only_paired, args.flag_exact_length, args.flag_tail_edge, None);
+
+            if !args.flag_skip_bed {
+                let outfile_bed = if args.flag_no_scale {
+                    stem_filename(&bamfile, &*format!("{}{}", suffix_prefix, "_not_scaled.bed"), args.flag_bed.clone())
                 } else {
-                    stem_filename(&bamfile, "_scaled.bed", args.flag_bed)
+                    stem_filename(&bamfile, &*format!("{}{}", suffix_prefix, "_scaled.bed"), args.flag_bed.clone())
                 };
-            
-            if file_exists(&outfile_bed) {
-                println!("Error: output BED file {} already exists!", outfile_bed);
-                exit(1);
+
+                if file_exists(&outfile_bed) {
+                    println!("Error: output BED file {} already exists!", outfile_bed);
+                    exit(1);
+                }
+
+                match pileup.write_bed(&outfile_bed, args.flag_stranded, args.flag_bed_stranded_positive) {
+                    Ok(_) => println!("# scale produced {}", &outfile_bed),
+                    Err(err) => println!("Error producing BED file: {}", err.description()),
+                }
+            } else {
+                println!("# scale skipping BED output");
             }
-            
-            match pileup.write_bed(&outfile_bed, args.flag_stranded) {
-                Ok(_) => println!("# scale produced {}", &outfile_bed),
-                Err(err) => println!("Error producing BED file: {}", err.description()),
+
+            if !args.flag_skip_bw {
+                let outfile_bw = stem_filename(&bamfile, &*format!("{}{}", suffix_prefix, ".bw"), args.flag_bw.clone());
+
+                match pileup.write_bw(&outfile_bw, args.flag_stranded) {
+                    Ok((f1, f2)) => {
+                        if f2.is_some() {
+                            println!("# scale produced {}", f1);
+                            println!("# scale produced {}", f2.unwrap());
+                        } else {
+                            println!("# scale produced {}", f1);
+                        }
+                    },
+                    Err(err) => println!("Error producing BigWig file: {}", err.description()),
+                }
+            } else {
+                println!("# scale skipping BigWig output");
             }
-        } else {
-            println!("# scale skipping BED output");
-        }
-        
-        if !args.flag_skip_bw {
-            let outfile_bw = stem_filename(&bamfile, ".bw", args.flag_bw);
-            
-            match pileup.write_bw(&outfile_bw, args.flag_stranded) {
-                Ok((f1, f2)) => {
-                    if f2.is_some() {
-                        println!("# scale produced {}", f1);
-                        println!("# scale produced {}", f2.unwrap());
-                    } else {
-                        println!("# scale produced {}", f1);   
-                    }
-                },
-                Err(err) => println!("Error producing BigWig file: {}", err.description()), 
-            }
-        } else {
-            println!("# scale skipping BigWig output");
         }
     }
 }

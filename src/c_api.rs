@@ -17,6 +17,7 @@ use std::ffi::CStr;
 use std::ptr;
 use std::mem;
 use std::ops::Deref;
+use filter::PairPosition;
 
 #[repr(C)]
 pub struct SeqTblParams(SeqTableParams);
@@ -130,6 +131,8 @@ pub struct Config {
   custom_shift_minus: i32,
   /// If false, pileUp represents unscaled counts
   scale_pileup: bool,
+  /// 0 - both, -1 - select first, 1 - select last in pair; only affects pile-ups
+  select_pair: i8
 }
 
 /// Create a Config structure filled with the same default values as used in the seqOutBias program.
@@ -149,6 +152,7 @@ pub extern fn seqoutbias_default_config() -> Config {
     custom_shift_plus: 0,
     custom_shift_minus: 0,
     scale_pileup: true,
+    select_pair: 0
   }
 }
 
@@ -236,7 +240,7 @@ pub extern fn seqoutbias_create_pileup(seqtable_filename: *const libc::c_char, b
   // compute pileup
   let pileup = scale::scale(
     &seqtable_filename, 
-    counts, 
+    &counts,
     &bams, 
     config.min_qual,
     config.shift_counts,
@@ -245,7 +249,12 @@ pub extern fn seqoutbias_create_pileup(seqtable_filename: *const libc::c_char, b
     &dist_range,
     config.only_paired,
     config.exact_length,
-    config.tail_edge
+    config.tail_edge,
+    match config.select_pair {
+      -1 => { Some(PairPosition::First) },
+      1 => { Some(PairPosition::Last) },
+      _ => { None }
+    }
   );
 
   Box::into_raw(Box::new(PileUpData(pileup)))

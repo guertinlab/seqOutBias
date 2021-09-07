@@ -325,6 +325,7 @@ fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceIn
                 max_dist: max,
                 force_paired: paired,
                 max_distance: true,
+                select_pair: None
             },
             None => PairedChecker {
                 tail_edge: tail_edge,
@@ -335,6 +336,7 @@ fn tabulate_bam<R: ioRead + Seek>(bamfilename: String, seqinfos: &Vec<SequenceIn
                 max_dist: 0,
                 force_paired: paired,
                 max_distance: false,
+                select_pair: None
             },
         };
         while process_bam_seq(counts, table, &mut iter, &mut cur_tid, &map, &checker, regions) {}

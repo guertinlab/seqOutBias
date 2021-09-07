@@ -21,7 +21,7 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Iter;
 use bigwig::write_bigwig;
 use bigwig::Strand;
-use filter::{RecordCheck, PairedChecker, SingleChecker};
+use filter::{RecordCheck, PairedChecker, SingleChecker, PairPosition};
 
 #[derive(Debug)]
 pub struct PileUp {
@@ -109,7 +109,7 @@ impl PileUp {
         }
     }
     
-    pub fn write_bed(&self, filename: &str, stranded: bool) -> Result<(),ioError> {
+    pub fn write_bed(&self, filename: &str, stranded: bool, both_positive: bool) -> Result<(),ioError> {
         // open new file
         let mut f = try!(File::create(filename));
         
@@ -124,7 +124,11 @@ impl PileUp {
                         try!(write!(f, "{}\t{}\t{}\t.\t{}\t+\n", chrom, pos, pos + 1, value.0));
                     }
                     if value.1 > 0f64 {
-                        try!(write!(f, "{}\t{}\t{}\t.\t{}\t-\n", chrom, pos, pos + 1, -value.1));
+                        if both_positive {
+                            try!(write!(f, "{}\t{}\t{}\t.\t{}\t-\n", chrom, pos, pos + 1, value.1));
+                        } else {
+                            try!(write!(f, "{}\t{}\t{}\t.\t{}\t-\n", chrom, pos, pos + 1, -value.1));
+                        }
                     }
                 } else {
                     try!(write!(f, "{}\t{}\t{}\t.\t{}\n", chrom, pos, pos + 1, value.0 + value.1));
@@ -208,7 +212,7 @@ fn compute_scale_factors(counts: &Vec<(u64, u64, u64, u64)>) -> Vec<(f64, f64)> 
     }).collect()
 }
 
-pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<String>, minqual: u8, shift: bool, shift_amounts: &Option<(i32, i32)>, no_scale: bool, pair_range: &Option<(i32, i32)>, paired: bool, exact_length: bool, tail_edge: bool) -> PileUp {
+pub fn scale(seqfile: &str, counts: &Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<String>, minqual: u8, shift: bool, shift_amounts: &Option<(i32, i32)>, no_scale: bool, pair_range: &Option<(i32, i32)>, paired: bool, exact_length: bool, tail_edge: bool, pair_side: Option<PairPosition>) -> PileUp {
     // read
     let file = match File::open(seqfile) {
         Ok(value) => value,
@@ -286,6 +290,8 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
                     max_dist: max,
                     force_paired: paired,
                     max_distance: true,
+                    select_pair: pair_side
+
                 },
                 None => PairedChecker {
                     tail_edge: tail_edge,
@@ -296,6 +302,7 @@ pub fn scale(seqfile: &str, counts: Vec<(u64, u64, u64, u64)>, bamfiles: &Vec<St
                     max_dist: 0,
                     force_paired: paired,
                     max_distance: false,
+                    select_pair: pair_side
                 },
             };
             while pileup.add_data(&mut table, &mut iter, &mut cur_tid, &map, &scale, &checker) {}
