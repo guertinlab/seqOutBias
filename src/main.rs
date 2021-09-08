@@ -197,8 +197,8 @@ fn main() {
         exit(1);
     }
 
-    if args.flag_out_split_pairends && args.flag_out.is_some() {
-        println!("--out-split-pairends and --out cannot be used together");
+    if args.flag_out_split_pairends && args.flag_bw.is_some() {
+        println!("--out-split-pairends and --bw cannot be used together");
         exit(1);
     }
 
@@ -361,7 +361,7 @@ fn main() {
         };
 
         for ( suffix_prefix, select_pair) in pileup_variants {
-            let pileup = scale::scale(&seqtable_file, &counts, args.arg_bam_file.as_ref().unwrap(), args.flag_qual, args.flag_shift_counts, &shift_amounts, args.flag_no_scale, &dist_range, args.flag_only_paired, args.flag_exact_length, args.flag_tail_edge, None);
+            let pileup = scale::scale(&seqtable_file, &counts, args.arg_bam_file.as_ref().unwrap(), args.flag_qual, args.flag_shift_counts, &shift_amounts, args.flag_no_scale, &dist_range, args.flag_only_paired, args.flag_exact_length, args.flag_tail_edge, select_pair);
 
             if !args.flag_skip_bed {
                 let outfile_bed = if args.flag_no_scale {
