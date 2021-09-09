@@ -22,6 +22,7 @@ use std::collections::btree_map::Iter;
 use bigwig::write_bigwig;
 use bigwig::Strand;
 use filter::{RecordCheck, PairedChecker, SingleChecker, PairPosition};
+use outputfile::OutFilename;
 
 #[derive(Debug)]
 pub struct PileUp {
@@ -109,9 +110,9 @@ impl PileUp {
         }
     }
     
-    pub fn write_bed(&self, filename: &str, stranded: bool, both_positive: bool) -> Result<(),ioError> {
+    pub fn write_bed(&self, filename: &OutFilename, stranded: bool, both_positive: bool) -> Result<(),ioError> {
         // open new file
-        let mut f = try!(File::create(filename));
+        let mut f = try!(File::create(filename.filename()));
         
         // write data
         for i in 0..self.chroms.len() {
@@ -153,22 +154,24 @@ impl PileUp {
         return basename;
     }
     
-    pub fn write_bw(&self, filename: &str, stranded: bool) -> Result<(String
+    pub fn write_bw(&self, filename: &OutFilename, stranded: bool) -> Result<(String
     , Option<String>), ioError> {
         if stranded {
-            let output_plus = PileUp::bw_stranded_filename(filename, Strand::Plus);
-            let output_minus = PileUp::bw_stranded_filename(filename, Strand::Minus);
-            
-	        match write_bigwig(&output_plus, &self.chroms, &self.chrom_sizes, &self.counts, Strand::Plus) {
+            let mut output_plus = filename.clone();
+            output_plus.prepend_suffix(OsStr::new( "_plus"));
+            let mut output_minus = filename.clone();
+            output_minus.prepend_suffix(OsStr::new("_minus"));
+
+	          match write_bigwig(&output_plus.filename(), &self.chroms, &self.chrom_sizes, &self.counts, Strand::Plus) {
                 Ok(_) => {
-                    try!(write_bigwig(&output_minus, &self.chroms, &self.chrom_sizes, &self.counts, Strand::Minus));
-                    Ok((output_plus.into_string().unwrap(), Some(output_minus.into_string().unwrap())))
+                    try!(write_bigwig(&output_minus.filename(), &self.chroms, &self.chrom_sizes, &self.counts, Strand::Minus));
+                    Ok((output_plus.filename().into_string().unwrap(), Some(output_minus.filename().into_string().unwrap())))
                 },
                 Err(err) => Err(err),
             }
         } else {
-            try!(write_bigwig(OsStr::new(filename), &self.chroms, &self.chrom_sizes, &self.counts, Strand::Both));
-            Ok((String::from(filename), None))
+            try!(write_bigwig(&filename.filename(), &self.chroms, &self.chrom_sizes, &self.counts, Strand::Both));
+            Ok((filename.filename().into_string().unwrap(), None))
         }
     }
 

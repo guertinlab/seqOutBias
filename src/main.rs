@@ -5,6 +5,7 @@ extern crate rustc_serialize;
 extern crate docopt;
 extern crate profile;
 extern crate toml;
+extern crate rust_htslib;
 
 use seqoutbiaslib::tallyrun;
 use seqoutbiaslib::seqtable;
@@ -23,6 +24,9 @@ use profile::Profile;
 use toml::Value;
 use std::io::Read;
 use seqoutbiaslib::filter::PairPosition;
+use seqoutbiaslib::outputfile::OutFilename;
+use rust_htslib::htslib::bam;
+use std::ffi::OsStr;
 
 /* Main usage/arguments */
 
@@ -197,16 +201,6 @@ fn main() {
         exit(1);
     }
 
-    if args.flag_out_split_pairends && args.flag_bw.is_some() {
-        println!("--out-split-pairends and --bw cannot be used together");
-        exit(1);
-    }
-
-    if args.flag_out_split_pairends && args.flag_bed.is_some() {
-        println!("--out-split-pairends and --bed cannot be used together");
-        exit(1);
-    }
-
     if args.flag_out_split_pairends && !args.flag_only_paired {
         println!("--out-split-pairends requires flag --only-paired");
         exit(1);
@@ -364,19 +358,21 @@ fn main() {
             let pileup = scale::scale(&seqtable_file, &counts, args.arg_bam_file.as_ref().unwrap(), args.flag_qual, args.flag_shift_counts, &shift_amounts, args.flag_no_scale, &dist_range, args.flag_only_paired, args.flag_exact_length, args.flag_tail_edge, select_pair);
 
             if !args.flag_skip_bed {
-                let outfile_bed = if args.flag_no_scale {
-                    stem_filename(&bamfile, &*format!("{}{}", suffix_prefix, "_not_scaled.bed"), args.flag_bed.clone())
+                let mut outfile_bed = OutFilename::from( &bamfile, &args.flag_bed, "bed");
+                if args.flag_no_scale {
+                    outfile_bed.append_suffix( OsStr::new("_not_scaled" ));
                 } else {
-                    stem_filename(&bamfile, &*format!("{}{}", suffix_prefix, "_scaled.bed"), args.flag_bed.clone())
-                };
+                    outfile_bed.append_suffix( OsStr::new("_scaled"));
+                }
+                outfile_bed.append_suffix(OsStr::new(suffix_prefix));
 
-                if file_exists(&outfile_bed) {
-                    println!("Error: output BED file {} already exists!", outfile_bed);
+                if file_exists(outfile_bed.filename() ) {
+                    println!("Error: output BED file {} already exists!", outfile_bed.filename().to_string_lossy() );
                     exit(1);
                 }
 
                 match pileup.write_bed(&outfile_bed, args.flag_stranded, args.flag_bed_stranded_positive) {
-                    Ok(_) => println!("# scale produced {}", &outfile_bed),
+                    Ok(_) => println!("# scale produced {}", &outfile_bed.filename().to_string_lossy()),
                     Err(err) => println!("Error producing BED file: {}", err.description()),
                 }
             } else {
@@ -384,7 +380,8 @@ fn main() {
             }
 
             if !args.flag_skip_bw {
-                let outfile_bw = stem_filename(&bamfile, &*format!("{}{}", suffix_prefix, ".bw"), args.flag_bw.clone());
+                let mut outfile_bw = OutFilename::from( &bamfile, &args.flag_bw, "bigWig");
+                outfile_bw.append_suffix(OsStr::new(suffix_prefix));
 
                 match pileup.write_bw(&outfile_bw, args.flag_stranded) {
                     Ok((f1, f2)) => {
