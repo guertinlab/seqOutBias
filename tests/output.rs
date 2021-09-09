@@ -61,7 +61,7 @@ fn temporary_bw_files_are_removed() {
     // assert some files exist
     // reads.bw
     let mut bw_out = src_path.clone();
-    bw_out.push("reads.bw");
+    bw_out.push("reads.bigWig");
     assert!(bw_out.exists());
 
     // assert some files are removed
@@ -107,7 +107,7 @@ fn supplied_tallymer_path_is_respected() {
     // assert some files exist
     // reads.bw
     let mut bw_out = src_path.clone();
-    bw_out.push("reads.bw");
+    bw_out.push("reads.bigWig");
     assert!(bw_out.exists());
 }
 
@@ -159,7 +159,7 @@ fn user_specified_genome_tools_working_directory() {
        .assert().success();
     
     // check that output files exist in the main directory
-    assert!(file_exists_in_folder("reads.bw", &main_path));
+    assert!(file_exists_in_folder("reads.bigWig", &main_path));
     assert!(file_exists_in_folder("ref2.tal_5.gtTxt.gz", &main_path));
 
     // check that genome tools temporary files do not exist in the main directory
