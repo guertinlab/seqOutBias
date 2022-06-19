@@ -76,3 +76,64 @@ impl EnzContext for EnzContextMaskedStrandSpecific {
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use fasta;
+    use fasta::DNABases;
+    use super::*;
+
+    // AA 0   CA 4   GA 8   TA 12
+    // AC     CC     GC     TC
+    // AG     CG     GG     TG
+    // AT     CT     GT     TT 15
+
+    fn kmer_value(bases: Vec<DNABases>) -> Option<u32> {
+        let mut res = 0;
+        for base in bases {
+            if base == DNABases::N {
+                return None;
+            }
+            res *= 4;
+            res += base as u32;
+        }
+        Some(res)
+    }
+
+    fn simple_params( kmer_size: u8 ) -> SeqTableParams {
+        SeqTableParams::new( kmer_size, 0, 0, 0, &Some("NXN".to_string()), true)
+    }
+
+    #[test]
+    fn kmer_value_ok() {
+        assert_eq!( Some(6), kmer_value(vec![DNABases::C, DNABases::G]));
+        assert_eq!( Some(12), kmer_value(vec![DNABases::T, DNABases::A]));
+        assert_eq!( None, kmer_value(vec![DNABases::C, DNABases::N]));
+    }
+
+    #[test]
+    fn valid_first_reverse_complement_index() {
+        println!("{:?}", simple_params(2));
+        let mut simple = EnzContextMaskedStrandSpecific::new(&simple_params(2));
+        assert_eq!( KmerIndex { plus: None, minus: None }, simple.add_base( fasta::DNABases::C as u8 ) );
+        assert_eq!( KmerIndex { plus: None, minus: None }, simple.add_base( fasta::DNABases::C as u8 ) ); // masked position
+        assert_eq!( KmerIndex {
+            plus: kmer_value(vec![DNABases::C, DNABases::T]), // CT
+            minus: kmer_value(vec![DNABases::A, DNABases::G]) // AG
+        }, simple.add_base( fasta::DNABases::T as u8 ) );
+    }
+
+    #[test]
+    fn valid_second_reverse_complement_index() {
+        let mut simple = EnzContextMaskedStrandSpecific::new(&simple_params(2));
+        simple.add_base( fasta::DNABases::C as u8 );
+        simple.add_base( fasta::DNABases::G as u8 );
+        simple.add_base( fasta::DNABases::C as u8 ); // position masked in second index
+        assert_eq!( KmerIndex {
+            plus: kmer_value(vec![DNABases::G, DNABases::T]), // GT
+            minus: kmer_value(vec![DNABases::A, DNABases::C]) // AC
+        }, simple.add_base( fasta::DNABases::T as u8 ) );
+
+    }
+}
