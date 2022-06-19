@@ -13,6 +13,7 @@ pub use self::masked_stranded::EnzContextMaskedStrandSpecific;
 /// Observed kmer on the plus and minus strands
 /// Unless the strand-specific flag is active, both values are equal
 /// and match the plus strand readout.
+#[derive(Eq,PartialEq,Debug)]
 pub struct KmerIndex {
     pub plus: Option<u32>,
     pub minus: Option<u32>

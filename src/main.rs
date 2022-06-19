@@ -25,7 +25,6 @@ use toml::Value;
 use std::io::Read;
 use seqoutbiaslib::filter::PairPosition;
 use seqoutbiaslib::outputfile::OutFilename;
-use rust_htslib::htslib::bam;
 use std::ffi::OsStr;
 
 /* Main usage/arguments */

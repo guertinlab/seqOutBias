@@ -14,6 +14,17 @@ use fasta::context::{KmerIndex, EnzContext, EnzContextMasked, EnzContextMaskedSt
 
 mod context;
 
+// Base encoding
+#[repr(u8)]
+#[derive(PartialEq)]
+pub enum DNABases {
+    A,
+    C,
+    G,
+    T,
+    N
+}
+
 // FASTA State machine
 #[derive(PartialEq)]
 enum State {
@@ -43,11 +54,11 @@ fn process_sequence<R1: Read, R2: BufRead, T:EnzContext>(seqwrt: SequenceWriter<
                 println!("# - {} bases", seqpos + 1);                
                 return State::HeaderChrom;
             },
-            b'a' | b'A' => { store_base!(enzctxt, buf, 0); seqpos += 1; },
-            b'c' | b'C' => { store_base!(enzctxt, buf, 1); seqpos += 1; },
-            b'g' | b'G' => { store_base!(enzctxt, buf, 2); seqpos += 1; },
-            b't' | b'T' => { store_base!(enzctxt, buf, 3); seqpos += 1; },
-            b'n' | b'N' => { store_base!(enzctxt, buf, 4); seqpos += 1; },
+            b'a' | b'A' => { store_base!(enzctxt, buf, DNABases::A as u8); seqpos += 1; },
+            b'c' | b'C' => { store_base!(enzctxt, buf, DNABases::C as u8); seqpos += 1; },
+            b'g' | b'G' => { store_base!(enzctxt, buf, DNABases::G as u8); seqpos += 1; },
+            b't' | b'T' => { store_base!(enzctxt, buf, DNABases::T as u8); seqpos += 1; },
+            b'n' | b'N' => { store_base!(enzctxt, buf, DNABases::N as u8); seqpos += 1; },
             _ => {},
         }
     }
