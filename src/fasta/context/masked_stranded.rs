@@ -136,4 +136,38 @@ mod tests {
         }, simple.add_base( fasta::DNABases::T as u8 ) );
 
     }
+
+    #[test]
+    fn valid_when_crossing_masked_unknown_bases_reverse_complement() {
+        let mut simple = EnzContextMaskedStrandSpecific::new(&simple_params(2));
+        simple.add_base( fasta::DNABases::C as u8 );
+        simple.add_base( fasta::DNABases::N as u8 ); // masked unknown position
+        assert_eq!( KmerIndex {
+            plus: kmer_value(vec![DNABases::C, DNABases::T]), // CT
+            minus: kmer_value(vec![DNABases::A, DNABases::G]) // AG
+        }, simple.add_base( fasta::DNABases::T as u8 ) );
+    }
+
+    #[test]
+    fn invalid_when_crossing_unknown_bases_reverse_complement() {
+        let mut simple = EnzContextMaskedStrandSpecific::new(&simple_params(2));
+        simple.add_base( fasta::DNABases::C as u8 );
+        simple.add_base( fasta::DNABases::N as u8 ); // masked unknown position
+        assert_eq!( KmerIndex { plus: None, minus: None }, simple.add_base( fasta::DNABases::N as u8 ) ); // unknown third position
+    }
+
+    #[test]
+    fn valid_reverse_complement_index_after_unknown_base() {
+        let mut simple = EnzContextMaskedStrandSpecific::new(&simple_params(2));
+        simple.add_base( fasta::DNABases::C as u8 );
+        simple.add_base( fasta::DNABases::N as u8 ); // masked unknown position
+        simple.add_base( fasta::DNABases::N as u8 );
+        simple.add_base( fasta::DNABases::G as u8 );
+        simple.add_base( fasta::DNABases::C as u8 ); // position masked
+        assert_eq!( KmerIndex {
+            plus: kmer_value(vec![DNABases::G, DNABases::T]), // GT
+            minus: kmer_value(vec![DNABases::A, DNABases::C]) // AC
+        }, simple.add_base( fasta::DNABases::T as u8 ) );
+    }
+
 }
