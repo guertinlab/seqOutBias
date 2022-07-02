@@ -16,7 +16,7 @@ fn vir_pos_common(read_length: usize, tail_edge: bool, exact_length: bool, rec: 
     if tail_edge {
         // instead of right edge of read (5') report left edge (3')
         if rec.is_reverse() {
-            rec.pos() - (rec.seq().len() as i32) + 1
+            rec.pos() - (read_length as i32) + 1
         } else {
             rec.pos() + (rec.seq().len() as i32) - 1
         }
