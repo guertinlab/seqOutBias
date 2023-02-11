@@ -80,11 +80,8 @@ impl<R: BufRead> UnMap<R> {
     fn insert_value(map: &mut Vec<UnMapCell>, pos: u32, is_minus: bool) {
         match map.last_mut() {
             Some(ref mut entry) if entry.position == pos => {
-                if is_minus {
-                    entry.data.minus = true;
-                } else {
-                    entry.data.plus = true;
-                }
+                entry.data.minus = true;
+                entry.data.plus = true;
 
                 return;
             },
@@ -93,8 +90,8 @@ impl<R: BufRead> UnMap<R> {
         map.push(UnMapCell{
                 position: pos,
                 data: UnMapPosition {
-                    plus: !is_minus,
-                    minus: is_minus,
+                    plus: true,
+                    minus: true,
                 }
         });
     }
